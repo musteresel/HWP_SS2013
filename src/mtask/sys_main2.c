@@ -3,6 +3,14 @@
 #include <util/delay.h>
 #include <util/atomic.h>
 
+
+
+#include <IO/uart/uart.h>
+#include <communication/communication.h>
+#include <communication/packettypes.h>
+#include <IO/ADC/ADC.h>
+
+
 #define RPUSH(r) asm volatile ("push r"#r);
 #define RPOP(r) asm volatile ("pop r"#r);
 
@@ -110,11 +118,12 @@ void fctA(void)
 		}
 		//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		//{
-			cli();
+			//cli();
 			PORTJ ^= (1 << PJ3);
+			//communication_log(LEVEL_FINE,"Ich bin Task A, Hi there");
 
 			//Motor_setVelocity_MotorA(-250);
-			sei();
+			//sei();
 		//}
 	}
 }
@@ -125,6 +134,11 @@ extern void Motor_setVelocity_MotorA(int16_t v);
 extern void Motor_setVelocity_MotorB(int16_t v);
 
 
+
+void commDebug(unsigned char channel, unsigned char* packet, unsigned short size) {
+		
+		communication_log(LEVEL_FINE, "received %i bytes", size);
+}
 
 
 void main(void) __attribute__(( noreturn ));
@@ -141,6 +155,11 @@ void main(void)
 	TIMSK0 |= (1<<OCIE0A);
 
 	Motor_init();
+	uart_init();
+	ADC_init();
+	communication_init();
+	communication_ChannelReceivers[0]=&commDebug;
+	communication_log(LEVEL_INFO, "Booting");
 	// Set all tasks to 0
 	{
 		uint8_t i = 0;
@@ -174,11 +193,13 @@ void main(void)
 		{
 			_delay_ms(10);
 		}
-		cli();
+		//cli();
 		//Motor_setVelocity_MotorA(-250);
 		//Motor_setVelocity_MotorB(250);
 		PORTK ^= (1 << PK0);
-		sei();
+		communication_log(LEVEL_INFO, "FRONT: %d LEFT: %d RIGHT: %d END",
+				ADC_getCurrentValue(0),ADC_getCurrentValue(2),ADC_getCurrentValue(1));
+		//sei();
 		div++;
 		if (div >= 100)
 		{

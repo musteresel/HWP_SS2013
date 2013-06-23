@@ -1,7 +1,8 @@
 # Let the compiler generate prerequisites.
 
 %.o: %.c
-	@echo "[CC] $@"
+	@echo "[CC] $@ "
+	@echo $(shell pwd)
 	@mkdir -p $(dir $@)
 	@$(CC) $(CPUFLAGS) $(CPPFLAGS) $(CFLAGS) -MD -c -o $@ $<
 # TODO sed magic!

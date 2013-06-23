@@ -20,6 +20,7 @@ CPPFLAGS := -DF_CPU=8000000
 
 CFLAGS := 
 CFLAGS += -Os
+#CFLAGS += -O3
 #CFLAGS += -O0
 CFLAGS += -funsigned-char
 CFLAGS += -funsigned-bitfields
