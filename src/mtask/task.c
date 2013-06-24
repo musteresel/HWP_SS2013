@@ -49,6 +49,7 @@ typedef struct __Task_struct
 
 Task * readyTasks[8];
 Task * currentTask;
+Task * nextTask;
 Task * nextTaskToWake;
 time_t nextTime;
 time_t taskStartTime;
@@ -61,19 +62,85 @@ void dispatch(void)
 	PUSH_REGS();
 	currentTask->sreg = SREG;
 	currentTask->sp = (uint8_t *)(SP);
-	uint8_t iterator = 0;
-	do
-	{
-		currentTask = readyTasks[iterator++];
-	} while (!currentTask);
+	currentTask = nextTask;
 	SREG = currentTask->sreg;
 	SP = (uint16_t)(currentTask->sp);
 	POP_REGS();
 	asm volatile ("reti"); // TODO
 }
 
-
 ISR(TIMER_ISR)
+{
+	// Variables
+	time_t currentTime;
+	time_t timerDelay;
+
+	currentTime = nextTime;
+	nextTask = currentTask;
+	timerDelay = MAX_DELAY_TIME;
+	
+	// Wake tasks whose time has come
+	while (nextTaskToWake && currentTime == nextTaskToWake->wakeTime)
+	{
+		Task * toWake = nextTaskToWake;
+		nextTaskToWake = toWake->next;
+		if (toWake->priority < nextTask->priority)
+		{
+			nextTask = toWake;
+		}
+		if (readyTasks[toWake->priority])
+		{
+			Task * currentReady = readyTasks[toWake->priority]; // TODO unfair?
+			toWake->next = currentReady->next;
+			currentReady->next = toWake;
+			readyTasks[toWake->priority] = toWake; // unfair?
+		}
+		else
+		{
+			readyTasks[toWake->priority] = toWake;
+			toWake->next = toWake;
+		}
+	}
+
+	// Apply round robin scheduling on the next priorities queue
+	currentTask->rrTime += currentTime - taskStartTime;
+	if (nextTask->next == nextTask)
+	{
+		// No rr needed if only one task in the queue
+		nextTask->rrTime = 0;
+		timerDelay = MAX_DELAY_TIME;
+	}
+	else
+	{
+		// If tasks timeslice is over, advance to the next in the queue
+		if (nextTask->rrTime >= MAX_RR_TIME)
+		{
+			readyTasks[nextTask->priority] = nextTask->next;
+			nextTask = nextTask->next;
+		}
+		timerDelay = MAX_RR_TIME - nextTask->rrTime; // assert > 0
+	}
+
+	if (nextTaskToWake)
+	{
+		time_t wakeDelay = nextTaskToWake->wakeTime - currentTime;
+		if (wakeDelay < timerDelay)
+		{
+			timerDelay = wakeDelay;
+		}
+	}
+
+	OCR1A = timerDelay * COUNT_MILLISECOND;
+	nextTime += timerDelay;
+
+	if (currentTask != nextTask)
+	{
+		dispatch();
+	}
+}
+
+
+void old_ISR(void)
 {
 	time_t currentTime;
 	time_t timerDelay;
