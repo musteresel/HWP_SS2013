@@ -1,10 +1,6 @@
 
-SOURCES := mtask/sys_main2.c \
-	mtask/task.c \
-	compileTest/motor.c \
-	hwplib/communication/communication.c \
-	hwplib/IO/uart/uart.c \
-	hwplib/IO/ADC/ADC.c
+SOURCES := mtask/sys_main3.c \
+	mtask/task.c
 
 
 mtask: mtask/mtask.hex mtask/mtask.lss mtask/mtask.sym

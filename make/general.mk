@@ -34,6 +34,7 @@ CFLAGS += -Wundef
 #CFLAGS += -Wsign-compare
 CFLAGS += -std=gnu99 #-std=c99
 CFLAGS += -g3 -gdwarf-2 #DEGUBING!
+CFLAGS += -fstack-usage
 
 LDFLAGS :=
 LDFLAGS += -Wl,--relax
