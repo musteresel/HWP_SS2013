@@ -4,11 +4,11 @@
 
 
 
-#define PRESCALER 64
-#define COUNT_MILLISECOND ((F_CPU/PRESCALER)/1000) // with 8Mhz => 125
+#define PRESCALER 64u
+#define COUNT_MILLISECOND ((F_CPU/PRESCALER)/1000u) // with 8Mhz => 125
 
-#define MAX_RR_TIME 10 // MilliSeconds
-#define MAX_DELAY_TIME ((65536/COUNT_MILLISECOND)- 1) // MilliSeconds
+#define MAX_RR_TIME 10u // MilliSeconds
+#define MAX_DELAY_TIME ((65536u/COUNT_MILLISECOND)- 1u) // MilliSeconds
 #define STACK_SIZE 128
 
 
@@ -34,7 +34,7 @@
 
 
 typedef uint16_t time_t;
-
+typedef void (*TaskFct)(void);
 typedef struct __Task_struct
 {
 	uint8_t sreg; // Status Register
@@ -49,34 +49,23 @@ typedef struct __Task_struct
 
 Task * readyTasks[8];
 Task * currentTask;
-Task * nextTask;
 Task * nextTaskToWake;
 time_t nextTime;
 time_t taskStartTime;
 
 
 
-void dispatch(void) __attribute__(( naked ));
-void dispatch(void)
+ISR(TIMER_ISR, ISR_NAKED)
 {
 	PUSH_REGS();
 	currentTask->sreg = SREG;
 	currentTask->sp = (uint8_t *)(SP);
-	currentTask = nextTask;
-	SREG = currentTask->sreg;
-	SP = (uint16_t)(currentTask->sp);
-	POP_REGS();
-	asm volatile ("reti"); // TODO
-}
-
-ISR(TIMER_ISR)
-{
 	// Variables
 	time_t currentTime;
 	time_t timerDelay;
 
 	currentTime = nextTime;
-	nextTask = currentTask;
+	currentTask->rrTime += currentTime - taskStartTime;
 	timerDelay = MAX_DELAY_TIME;
 	
 	// Wake tasks whose time has come
@@ -84,9 +73,9 @@ ISR(TIMER_ISR)
 	{
 		Task * toWake = nextTaskToWake;
 		nextTaskToWake = toWake->next;
-		if (toWake->priority < nextTask->priority)
+		if (toWake->priority < currentTask->priority)
 		{
-			nextTask = toWake;
+			currentTask = toWake;
 		}
 		if (readyTasks[toWake->priority])
 		{
@@ -103,126 +92,80 @@ ISR(TIMER_ISR)
 	}
 
 	// Apply round robin scheduling on the next priorities queue
-	currentTask->rrTime += currentTime - taskStartTime;
-	if (nextTask->next == nextTask)
+	if (currentTask->next == currentTask)
 	{
 		// No rr needed if only one task in the queue
-		nextTask->rrTime = 0;
+		currentTask->rrTime = 0;
 		timerDelay = MAX_DELAY_TIME;
 	}
 	else
 	{
 		// If tasks timeslice is over, advance to the next in the queue
-		if (nextTask->rrTime >= MAX_RR_TIME)
+		while (currentTask->rrTime >= MAX_RR_TIME)
 		{
-			readyTasks[nextTask->priority] = nextTask->next;
-			nextTask = nextTask->next;
-		}
-		timerDelay = MAX_RR_TIME - nextTask->rrTime; // assert > 0
-	}
-
-	if (nextTaskToWake)
-	{
-		time_t wakeDelay = nextTaskToWake->wakeTime - currentTime;
-		if (wakeDelay < timerDelay)
-		{
-			timerDelay = wakeDelay;
-		}
-	}
-
-	OCR1A = timerDelay * COUNT_MILLISECOND;
-	nextTime += timerDelay;
-
-	if (currentTask != nextTask)
-	{
-		dispatch();
-	}
-}
-
-
-void old_ISR(void)
-{
-	time_t currentTime;
-	time_t timerDelay;
-	time_t needDispatch = 0;
-	// Assume nextTime is correct
-	currentTime = nextTime;
-	// Save the time the current task has run so far, in order to be fair
-	// about rr scheduling
-	currentTask->rrTime += currentTime - taskStartTime;
-	// If the max rr time has been exceeded, we probably must take action
-	if (currentTask->rrTime >= MAX_RR_TIME)
-	{
-		if (currentTask->next == currentTask)
-		{
-			// If there is no other task to do rr with, stick with this one
-			// for as long as possible
-			timerDelay = MAX_DELAY_TIME;
-			taskStartTime = currentTime; // simulate dispatch
-		}
-		else
-		{
-			// Select the next task with the same priority and compute the
-			// time until its rr time will be exceeded
+			currentTask->rrTime = 0;
 			readyTasks[currentTask->priority] = currentTask->next;
-			timerDelay = MAX_RR_TIME - currentTask->next->rrTime; // TODO assert > 0+x
-			needDispatch = 1;
+			currentTask = currentTask->next;
 		}
-		currentTask->rrTime = 0; // Eventually solves above assertion
-	}
-	else
-	{
-		timerDelay = MAX_RR_TIME - currentTask->rrTime;
-	}
-	if (nextTaskToWake && currentTime == nextTaskToWake->wakeTime)
-	{
-		// A task needs to be woken
-		Task * toWake = nextTaskToWake;
-		nextTaskToWake = nextTaskToWake->next;
-		// Only dispatch if priority is higher than the current
-		if (toWake->priority < currentTask->priority)
+		timerDelay = MAX_RR_TIME - currentTask->rrTime; // assert > 0
+		if (timerDelay == 0)
 		{
-			needDispatch = 1;
-		}
-		// Insert task into readyTasks
-		if (readyTasks[toWake->priority])
-		{
-			// Insert at top of existing queue (TODO unfair?)
-			Task * currentReady = readyTasks[toWake->priority];
-			toWake->next = currentReady->next;
-			currentReady->next = toWake;	
-			readyTasks[toWake->priority] = toWake; // ?
-		}
-		else
-		{
-			// Insert as new queue
-			readyTasks[toWake->priority] = toWake;
-			toWake->next = toWake;
+			asm volatile ("nop ;Mist");
+			for (;;);
 		}
 	}
+
 	if (nextTaskToWake)
 	{
-		// Adjust timerDelay to wake next task
 		time_t wakeDelay = nextTaskToWake->wakeTime - currentTime;
 		if (wakeDelay < timerDelay)
 		{
 			timerDelay = wakeDelay;
 		}
 	}
-	// Set timer
+
 	OCR1A = timerDelay * COUNT_MILLISECOND;
-	// Ensure the next ISR knows the correct time
 	nextTime += timerDelay;
-	if (needDispatch)
-	{
-		// Only dispatch if neccessary
-		taskStartTime = currentTime;
-		dispatch();
-		// Won't return here, so NO correct stack?
-	}
+	taskStartTime = currentTime;
+
+	SREG = currentTask->sreg;
+	SP = (uint16_t)(currentTask->sp);
+	POP_REGS();
+//	sei();
+	asm volatile ("reti");
 }
 
 Task idleTask;
+Task taskA;
+uint8_t stackA[100];
+
+
+void fctA(void) __attribute__(( noreturn ));
+void fctA(void)
+{
+	asm volatile ("nop");
+	RPUSH(1);
+	RPUSH(2);
+	for (;;);
+}
+
+void initTask(Task * t, TaskFct f, uint8_t * s)
+{
+	s--;
+	*s-- = ((uint16_t)f) >> 8;
+	*s-- = ((uint16_t)f) & 0xFF;
+	uint8_t iterator = 0;
+	for (; iterator < 32; iterator++)
+	{
+		*s-- = 0;
+	}
+	s--;
+	t->sp = s;
+	t->sreg = 0;
+	t->rrTime = 0;
+}
+
+
 
 
 void startMultitasking(void)
@@ -230,10 +173,16 @@ void startMultitasking(void)
 	readyTasks[0] = readyTasks[1] = readyTasks[2] = readyTasks[3] =
 		readyTasks[4] = readyTasks[5] = readyTasks[6] = 0;
 	readyTasks[7] = &idleTask;
-	nextTaskToWake = 0;
+	nextTaskToWake = &taskA;
 	idleTask.priority = 7;
 	idleTask.next = &idleTask;
 	currentTask = &idleTask;
+
+	taskA.priority = 7;
+	initTask(&taskA, fctA, &(stackA[99]));
+	taskA.wakeTime = 13;
+	taskA.next = 0;
+
 
 	TCCR1B = 0; // stop timer
 	TCNT1 = 0; // reset
@@ -250,45 +199,5 @@ void startMultitasking(void)
 
 
 
-
-
-/*
-Task * currenTask;
-Task * nextTaskToWake;
-ISR(TIMER_ISR) // NOT naked, don't need to save ALL regs if not dispatching
-{
-	uint8_t currentTime = nextTime;
-	uint8_t rrInterval;
-	uint8_t timerDelay;
-	// Save the time the current task has run so far, in order to be fair
-	// about rr scheduling
-	currentTask->rrTime += currentTime - taskStartTime;
-	// Compute the time the next rr scheduling should happen
-	rrInterval = MAX_RR_TIME - currentTask->rrTime;
-	if (rrInterval == 0)
-	{
-		rrInterval = MAX_RR_TIME;
-	}
-	if (nextTaskToWake && currentTime == nextTaskToWake->wakeTime)
-	{
-		Task * toWake = nextTaskToWake;
-		nextTaskToWake = nextTaskToWake->next;
-		wake(toWake);
-		if (nextTaskToWake)
-		{
-			timerDely = MIN(rrInterval, nextTaskToWake->wakeTime
-
-	}
-
-	if (nextTaskToWake)
-	{
-		timerDelay = MIN(rrInterval, nextTaskToWake->wakeTime - currentTime);
-	}
-	else
-	{
-		timerDelay = rrInterval;
-	}
-}}
-*/
 
 

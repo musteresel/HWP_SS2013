@@ -12,7 +12,7 @@ void main(void)
 	asm volatile ("nop");
 
 	uint16_t i = 0;
-	for (; i < 4000; i++)
+	for (; i < 5000; i++)
 	{
 		_delay_ms(10);
 	}
