@@ -4,14 +4,7 @@
 
 
 
-#define PRESCALER 64u
-#define COUNT_MILLISECOND ((F_CPU/PRESCALER)/1000u) // with 8Mhz => 125
-
-#define MAX_RR_TIME 10u // MilliSeconds
-#define MAX_DELAY_TIME ((65536u/COUNT_MILLISECOND)- 1u) // MilliSeconds
-#define STACK_SIZE 128
-
-
+#include "mtask/task.h"
 
 
 #define RPUSH(r) asm volatile ("push r"#r);
@@ -33,24 +26,11 @@
 #define TIMER_ISR TIMER1_COMPA_vect
 
 
-typedef uint16_t time_t;
-typedef void (*TaskFct)(void);
-typedef struct __Task_struct
-{
-	uint8_t sreg; // Status Register
-	uint8_t * sp; // Stack pointer
-	uint8_t stack[STACK_SIZE]; // Tasks stack
-	time_t rrTime; // Tasks run time (for round robin)
-	uint8_t priority; // Task priority (0 - 7)
-	time_t wakeTime;
-	struct __Task_struct * next;
-} Task;
-
-
-Task * readyTasks[8];
+Task * readyTasks[8] = {0};
 Task * currentTask;
-Task * nextTaskToWake;
+Task * nextTaskToWake = 0;
 time_t nextTime;
+time_t currentTime;
 time_t taskStartTime;
 
 
@@ -61,7 +41,6 @@ ISR(TIMER_ISR, ISR_NAKED)
 	currentTask->sreg = SREG;
 	currentTask->sp = (uint8_t *)(SP);
 	// Variables
-	time_t currentTime;
 	time_t timerDelay;
 
 	currentTime = nextTime;
@@ -124,6 +103,11 @@ ISR(TIMER_ISR, ISR_NAKED)
 		}
 	}
 
+
+//	PORTJ ^= (1 << PJ3);
+
+
+
 	OCR1A = timerDelay * COUNT_MILLISECOND;
 	nextTime += timerDelay;
 	taskStartTime = currentTime;
@@ -136,18 +120,6 @@ ISR(TIMER_ISR, ISR_NAKED)
 }
 
 Task idleTask;
-Task taskA;
-uint8_t stackA[100];
-
-
-void fctA(void) __attribute__(( noreturn ));
-void fctA(void)
-{
-	asm volatile ("nop");
-	RPUSH(1);
-	RPUSH(2);
-	for (;;);
-}
 
 void initTask(Task * t, TaskFct f, uint8_t * s)
 {
@@ -165,24 +137,46 @@ void initTask(Task * t, TaskFct f, uint8_t * s)
 	t->rrTime = 0;
 }
 
+void setTaskReady(Task * t)
+{
+	uint8_t sreg = SREG;
+	cli();
+	if (readyTasks[t->priority])
+	{
+		Task * currentReady = readyTasks[t->priority];
+		t->next = currentReady->next;
+		currentReady->next = t;
+		readyTasks[t->priority] = t;
+	}
+	else
+	{
+		readyTasks[t->priority] = t;
+		t->next = t;
+	}
+	SREG = sreg;
+}
 
 
+uint8_t idleTaskStack[50];
+void idleTaskFct(void) __attribute__ ((noreturn));
+void idleTaskFct(void)
+{
+	for (;;)
+	{
+		MCUCR |= (1 << SE);
+		asm volatile ("sleep");
+	}
+}
 
+void startMultitasking(void) __attribute__ (( naked ));
 void startMultitasking(void)
 {
-	readyTasks[0] = readyTasks[1] = readyTasks[2] = readyTasks[3] =
-		readyTasks[4] = readyTasks[5] = readyTasks[6] = 0;
-	readyTasks[7] = &idleTask;
-	nextTaskToWake = &taskA;
+//	readyTasks[0] = readyTasks[1] = readyTasks[2] = readyTasks[3] =
+//		readyTasks[4] = readyTasks[5] = readyTasks[6] = readyTasks[7] = 0;
+//	nextTaskToWake = 0;
 	idleTask.priority = 7;
-	idleTask.next = &idleTask;
-	currentTask = &idleTask;
-
-	taskA.priority = 7;
-	initTask(&taskA, fctA, &(stackA[99]));
-	taskA.wakeTime = 13;
-	taskA.next = 0;
-
+	initTask(&idleTask, idleTaskFct, &(idleTaskStack[49]));
+	setTaskReady(&idleTask);
 
 	TCCR1B = 0; // stop timer
 	TCNT1 = 0; // reset
@@ -190,14 +184,93 @@ void startMultitasking(void)
 	TCCR1A = 0;
 	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
 	// we call the isr directly
-	OCR1A = 65535;
+	OCR1A = 1250;
 	taskStartTime = 65530;
 	nextTime = 65530;
 	TIMSK1 |= (1 << OCIE1A);
-	TIMER_ISR();
+	//TIMER_ISR();
+	uint8_t i = 0;
+	currentTask = 0;
+	do
+	{
+		currentTask = readyTasks[i++];
+	} while (!currentTask);
+	SREG = currentTask->sreg;
+	SP = (uint16_t)(currentTask->sp);
+	POP_REGS();
+	asm volatile ("reti");
 }
 
 
+void setTaskNotReady(Task * t)
+{
+	if (t->next == t)
+	{
+		readyTasks[t->priority] = 0;
+	}
+	else
+	{
+		Task * previous;
+		previous = readyTasks[t->priority];
+		while (previous->next != t)
+		{
+			previous = previous->next;
+		}
+		previous->next = t->next;
+	}
+}
+
+
+void dispatch(void) __attribute__((naked))
+{
+	PUSH_REGS();
+	currentTask->sp = (uint8_t *)(SP);
+	currentTask->sreg = SREG;
+	currentTask = 0;
+	uint8_t i = 0;
+	do
+	{
+		currentTask = readyTasks[i++];
+	} while (!currentTask);
+	SREG = currentTask->sreg;
+	SP = (uint16_t)(currentTask->sp);
+	POP_REGS();
+	asm volatile ("reti");
+}
+
+void wait(time_t t)
+{
+	// getCurrentTime
+	// + t = wakeTime
+	// iterate list and insert where t < listItems delay
+	time_t current;
+	current = currentTime + TCNT1 / COUNT_MILLISECOND;
+	cli();
+	setTaskNotReady(currentTask);
+	currentTask->wakeTime = current	+ t;
+	currentTask->rrTime += current - taskStartTime;
+	Task * last = 0;
+	Task * iterator = nextTaskToWake;
+	while (iterator && iterator->wakeTime - current < t)
+	{
+		last = iterator;
+		iterator = iterator->next;
+	}
+	if (last)
+	{
+		last->next = currentTask;
+	}
+	else
+	{
+		nextTaskToWake = currentTask;
+		TCNT1 = 0;
+		OCR1A = t * COUNT_MILLISECOND;
+		nextTime = current + t; // TODO rr beachten!!!!!
+	}
+	currentTask->next = iterator;
+	taskStartTime = current;
+	dispatch();
+}
 
 
 
