@@ -48,7 +48,8 @@ static struct __TimeInfo
 
 
 //-----------------------------------------------------------------------------
-void Task_waitCurrent(time_t delay) __attribute__ (( naked ));
+void Task_waitCurrent(time_t delay);
+void _waitCurrent_inner(void) __attribute__ (( naked, noinline ));
 static void idleTaskFct(void) __attribute__ (( noreturn ));
 void Multitasking_init(void) __attribute__ (( naked ));
 void Task_init(Task * task, TaskFct function, uint8_t * stack);
@@ -111,10 +112,16 @@ ISR(TIMER_ISR, ISR_NAKED)
 //-----------------------------------------------------------------------------
 void Task_waitCurrent(time_t delay)
 {
-	// TODO: compiler kills r14
-	// Disable interrupts and save context
 	cli();
+	taskInfo.current->wakeTime = delay;
+	_waitCurrent_inner();
+}
+void _waitCurrent_inner(void)
+{
+	// Save context
 	port_SAVE_CONTEXT();
+	// Get passed parameter
+	time_t delay = taskInfo.current->wakeTime;
 	// Estimate the current time and remaining delay
 	// TODO: improve estimation
 	time_t current = timeInfo.current + TCNT1 / COUNT_MILLISECOND;
