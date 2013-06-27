@@ -1,6 +1,6 @@
 
 SOURCES := mtask/sys_main3.c \
-	mtask/task.c \
+	kernel/task.c \
 	sensor/ir.c \
 	hwplib/IO/ADC/ADC.c \
 	hwplib/communication/communication.c \

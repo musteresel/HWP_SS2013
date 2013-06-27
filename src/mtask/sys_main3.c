@@ -3,7 +3,7 @@
 #include <util/delay.h>
 #include <stdint.h>
 
-#include "mtask/task.h"
+#include "kernel/task.h"
 #include "IO/ADC/ADC.h"
 #include "sensor/ir.h"
 #include "communication/communication.h"
@@ -51,9 +51,9 @@ void main(void)
 	DDRJ = 0 | (1 << PJ3);
 
 	irReaderTask.priority = 6;
-	initTask(&irReaderTask, irReader, &(irReaderStack[199]));
-	setTaskReady(&irReaderTask);
+	Task_init(&irReaderTask, irReader, &(irReaderStack[199]));
+	_Task_setReady(&irReaderTask);
 
-	startMultitasking();
+	Multitasking_init();
 }
 

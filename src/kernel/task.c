@@ -1,35 +1,19 @@
+/* Multitasking implementation
+ * */
+//-----------------------------------------------------------------------------
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <stdint.h>
-
-
-
-#include "mtask/task.h"
-
-
-#define RPUSH(r) asm volatile ("push r"#r);
-#define RPOP(r) asm volatile ("pop r"#r);
-
-#define port_SAVE_CONTEXT() \
-	RPUSH(0);asm volatile ("in r0,__SREG__");RPUSH(0);\
-	RPUSH(31);RPUSH(30);RPUSH(29);RPUSH(28);RPUSH(27);RPUSH(26);RPUSH(25);\
-	RPUSH(24);RPUSH(23);RPUSH(22);RPUSH(21);RPUSH(20);RPUSH(19);RPUSH(18);\
-	RPUSH(17);RPUSH(16);RPUSH(15);RPUSH(14);RPUSH(13);RPUSH(12);RPUSH(11);\
-	RPUSH(10);RPUSH(9);RPUSH(8);RPUSH(7);RPUSH(6);RPUSH(5);RPUSH(4);\
-	RPUSH(3);RPUSH(2);RPUSH(1);asm volatile("clr r1");\
-	taskInfo.current->sp = (uint8_t *)(SP);
-#define port_RESTORE_CONTEXT() \
-	SP = (uint16_t)(taskInfo.current->sp);\
-	RPOP(1);RPOP(2);RPOP(3);RPOP(4);RPOP(5);RPOP(6);RPOP(7);RPOP(8);\
-	RPOP(9);RPOP(10);RPOP(11);RPOP(12);RPOP(13);RPOP(14);RPOP(15);RPOP(16);\
-	RPOP(17);RPOP(18);RPOP(19);RPOP(20);RPOP(21);RPOP(22);RPOP(23);RPOP(24);\
-	RPOP(25);RPOP(26);RPOP(27);RPOP(28);RPOP(29);RPOP(30);RPOP(31);\
-	RPOP(0);asm volatile ("out __SREG__,r0");RPOP(0);
-
-
+//-----------------------------------------------------------------------------
+#include "kernel/task.h"
+#include "kernel/_port.h"
+//-----------------------------------------------------------------------------
+#define COUNT_MILLISECOND ((F_CPU/TASKTIMER_PRESCALER)/1000u) // with 8Mhz => 125
+#define MAX_RR_TIME 10u // MilliSeconds
+#define MAX_DELAY_TIME ((65536u/COUNT_MILLISECOND)- 1u) // MilliSeconds
+//-----------------------------------------------------------------------------
 #define TIMER_ISR TIMER1_COMPA_vect
-
 //-----------------------------------------------------------------------------
 static struct __TaskInfo
 {
@@ -43,26 +27,20 @@ static struct __TimeInfo
 	time_t next;
 	time_t taskStart;
 } timeInfo;
-
-
-
-
+static uint8_t idleTaskStack[50];
+static Task idleTask;
 //-----------------------------------------------------------------------------
-void Task_waitCurrent(time_t delay);
-void _waitCurrent_inner(void) __attribute__ (( naked, noinline ));
-static void idleTaskFct(void) __attribute__ (( noreturn ));
-void Multitasking_init(void) __attribute__ (( naked ));
+void Task_waitCurrent(time_t delay) __attribute__ (( hot ));
+void _waitCurrent_inner(void) __attribute__ (( naked, noinline, hot ));
+static void idleTaskFct(void) __attribute__ (( noreturn, cold ));
+void Multitasking_init(void) __attribute__ (( naked, cold ));
 void Task_init(Task * task, TaskFct function, uint8_t * stack);
 void _Task_setReady(Task * task);
-void _Task_setNotReady(Task * task);
-Task * _Task_getNextReady(void);
-time_t _Task_enforceTimeslice(void);
-
-
-
-
+void _Task_setNotReady(Task * task) __attribute__ (( hot ));
+Task * _Task_getNextReady(void) __attribute__ (( hot ));
+time_t _Task_enforceTimeslice(void) __attribute__ (( hot ));
 //-----------------------------------------------------------------------------
-ISR(TIMER_ISR, ISR_NAKED)
+__attribute__(( flatten, hot )) ISR(TIMER_ISR, ISR_NAKED)
 {
 	// Save the context of the current task
 	port_SAVE_CONTEXT();
@@ -102,13 +80,6 @@ ISR(TIMER_ISR, ISR_NAKED)
 	// Return and enable interrupts
 	reti();
 }
-
-
-
-
-
-
-
 //-----------------------------------------------------------------------------
 void Task_waitCurrent(time_t delay)
 {
@@ -168,21 +139,7 @@ void _waitCurrent_inner(void)
 	port_RESTORE_CONTEXT();
 	reti();
 }
-
-
-
-
-
-
-
-
-
-
-
-
 //-----------------------------------------------------------------------------
-static uint8_t idleTaskStack[50];
-static Task idleTask;
 static void idleTaskFct(void)
 {
 	for (;;)
@@ -192,6 +149,7 @@ static void idleTaskFct(void)
 		sleep_cpu();
 	}
 }
+//-----------------------------------------------------------------------------
 void Multitasking_init(void)
 {
 	// Prepare the idle task
@@ -216,10 +174,6 @@ void Multitasking_init(void)
 	// Enable interrupts during switch
 	reti();
 }
-
-
-
-
 //-----------------------------------------------------------------------------
 void Task_init(Task * task, TaskFct function, uint8_t * stack)
 {
