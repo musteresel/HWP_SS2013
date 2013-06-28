@@ -161,15 +161,18 @@ void Multitasking_init(void)
 	TCNT1 = 0;
 	TCCR1A = 0;
 	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
-	// Give the first task MAX_RR_TIME to run
-	OCR1A = MAX_RR_TIME * COUNT_MILLISECOND;
+	// Start at time 0
 	timeInfo.taskStart = 0;
-	timeInfo.next = 10;
 	timeInfo.current = 0;
-	// Enable the timer interrupt
-	TIMSK1 |= (1 << OCIE1A);
 	// Switch to the task with highest priority
 	taskInfo.current = _Task_getNextReady();
+	// Apply timeslice and compute next time
+	timeInfo.next = timeInfo.current + _Task_enforceTimeslice();
+	// Set timer
+	OCR1A = COUNT_MILLISECOND * timeInfo.next;
+	// Enable the timer interrupt
+	TIMSK1 |= (1 << OCIE1A);
+	// "Restore" context
 	port_RESTORE_CONTEXT();
 	// Enable interrupts during switch
 	reti();
@@ -180,19 +183,17 @@ void Task_init(Task * task, TaskFct function, uint8_t * stack)
 	// The "bottom" byte to be in use by the task
 	stack--;
 	// Return address as if pushed by an interrupt
-	*stack-- = ((uint16_t)function) >> 8;
 	*stack-- = ((uint16_t)function) & 0xFF;
+	*stack-- = ((uint16_t)function) >> 8;
 	// Register R0 and SREG
 	*stack-- = 0;
 	*stack-- = 0;
 	// Registers R31 to R1
-	uint8_t iterator = 0;
-	for (; iterator < 31; iterator++)
+	uint8_t iterator = 31;
+	for (; iterator > 0; iterator--)
 	{
-		*stack-- = 0;
+		*stack-- = iterator;
 	}
-	// TODO: why?
-	*stack-- = 42;
 	// Save the pointer to be able to restore it
 	task->sp = stack;
 	// The task has not run, so it's timeslice usage is 0
@@ -236,14 +237,14 @@ void _Task_setNotReady(Task * task)
 }
 Task * _Task_getNextReady(void)
 {
-	// TODO: more performance please
-	uint8_t i = 0;
-	Task * highestReady = taskInfo.ready[0];
-	while (!highestReady)
-	{
-		highestReady = taskInfo.ready[i++];
-	}
-	return highestReady;
+	if (taskInfo.ready[0]) return taskInfo.ready[0];
+	if (taskInfo.ready[1]) return taskInfo.ready[1];
+	if (taskInfo.ready[2]) return taskInfo.ready[2];
+	if (taskInfo.ready[3]) return taskInfo.ready[3];
+	if (taskInfo.ready[4]) return taskInfo.ready[4];
+	if (taskInfo.ready[5]) return taskInfo.ready[5];
+	if (taskInfo.ready[6]) return taskInfo.ready[6];
+	return taskInfo.ready[7];
 }
 time_t _Task_enforceTimeslice(void)
 {

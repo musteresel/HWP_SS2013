@@ -22,11 +22,7 @@ void irReader(void)
 		front = readIR(IR_FRONT);
 		left = readIR(IR_LEFT);
 		right = readIR(IR_RIGHT);
-		uint8_t i = 0;
-		for (; i < 50; i++)
-		{
-			_delay_ms(10);
-		}
+		Task_waitCurrent(500);
 		cli();
 		communication_log(LEVEL_FINE, "F: %5u L:%5u R:%5u END",
 				front, left, right);
