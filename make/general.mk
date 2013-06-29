@@ -33,7 +33,7 @@ CFLAGS += -Wundef
 #CFLAGS += -Wunreachable-code
 #CFLAGS += -Wsign-compare
 CFLAGS += -std=gnu99 #-std=c99
-CFLAGS += -g3 -gdwarf-2 #DEGUBING!
+CFLAGS += -g3 -gdwarf-2 -pg #DEGUBING!
 CFLAGS += -fstack-usage
 
 LDFLAGS :=

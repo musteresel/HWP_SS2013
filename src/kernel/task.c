@@ -14,6 +14,19 @@
 #define MAX_DELAY_TIME ((65536u/COUNT_MILLISECOND)- 1u) // MilliSeconds
 //-----------------------------------------------------------------------------
 #define TIMER_ISR TIMER1_COMPA_vect
+
+#ifdef SCHEDDEBUG
+static struct __DEBUG
+{
+	uint8_t reason;
+	Task * from;
+	Task * to;
+	time_t time;
+	time_t rrTime;
+} DEBUG[100]; 
+static uint8_t D_iter = 0;
+#endif
+
 //-----------------------------------------------------------------------------
 static struct __TaskInfo
 {
@@ -46,6 +59,10 @@ __attribute__(( flatten, hot )) ISR(TIMER_ISR, ISR_NAKED)
 	port_SAVE_CONTEXT();
 	// Update time information
 	timeInfo.current = timeInfo.next;
+#ifdef SCHEDDEBUG
+DEBUG[D_iter].from = taskInfo.current;
+DEBUG[D_iter].reason = 'I';
+#endif
 	taskInfo.current->rrTime += timeInfo.current - timeInfo.taskStart;
 	// Wake tasks whose time has come
 	while (taskInfo.nextToWake &&
@@ -75,6 +92,11 @@ __attribute__(( flatten, hot )) ISR(TIMER_ISR, ISR_NAKED)
 	// Update time information
 	timeInfo.next += delay;
 	timeInfo.taskStart = timeInfo.current;
+#ifdef SCHEDDEBUG
+DEBUG[D_iter].to = taskInfo.current;
+DEBUG[D_iter].rrTime = taskInfo.current->rrTime;
+DEBUG[D_iter++].time = timeInfo.taskStart;
+#endif
 	// Restore context of task to run
 	port_RESTORE_CONTEXT();
 	// Return and enable interrupts
@@ -85,6 +107,8 @@ void Task_waitCurrent(time_t delay)
 {
 	cli();
 	taskInfo.current->wakeTime = delay;
+	// TODO: compiler optimizes to a rjmp, assure there is always a return
+	// address on the stack!
 	_waitCurrent_inner();
 }
 void _waitCurrent_inner(void)
@@ -95,7 +119,9 @@ void _waitCurrent_inner(void)
 	time_t delay = taskInfo.current->wakeTime;
 	// Estimate the current time and remaining delay
 	// TODO: improve estimation
-	time_t current = timeInfo.current + TCNT1 / COUNT_MILLISECOND;
+//	time_t offset = (TCNT1 + (COUNT_MILLISECOND >> 1)) / COUNT_MILLISECOND;
+	time_t offset = TCNT1 / COUNT_MILLISECOND;
+	time_t current = timeInfo.current + offset;
 	time_t remainingDelay = timeInfo.next - current;
 	// Remove the current task from the ready list
 	_Task_setNotReady(taskInfo.current);
@@ -106,6 +132,13 @@ void _waitCurrent_inner(void)
 	timeInfo.taskStart = current;
 	taskInfo.current = _Task_getNextReady();
 	time_t rrDelay = _Task_enforceTimeslice();
+#ifdef SCHEDDEBUG
+DEBUG[D_iter].reason = 'W';
+DEBUG[D_iter].from = toWait;
+DEBUG[D_iter].to = taskInfo.current;
+DEBUG[D_iter].rrTime = taskInfo.current->rrTime;
+DEBUG[D_iter++].time = current;
+#endif
 	// Insert the task in the wait list
 	Task * last = 0;
 	Task * iterator = taskInfo.nextToWake;
@@ -131,8 +164,8 @@ void _waitCurrent_inner(void)
 	// If neccessary, reset the timer
 	if (delay < remainingDelay)
 	{
-		TCNT1 = 0;
-		OCR1A = delay * COUNT_MILLISECOND;
+		OCR1A = (offset + delay) * COUNT_MILLISECOND;
+//		timeInfo.current = current;
 		timeInfo.next = current + delay;
 	}
 	// Switch to the ready task with now highest priority
@@ -156,11 +189,6 @@ void Multitasking_init(void)
 	idleTask.priority = 7;
 	Task_init(&idleTask, idleTaskFct, &(idleTaskStack[49]));
 	_Task_setReady(&idleTask);
-	// Set the timer to CTC with prescaler 64
-	TCCR1B = 0;
-	TCNT1 = 0;
-	TCCR1A = 0;
-	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
 	// Start at time 0
 	timeInfo.taskStart = 0;
 	timeInfo.current = 0;
@@ -172,6 +200,11 @@ void Multitasking_init(void)
 	OCR1A = COUNT_MILLISECOND * timeInfo.next;
 	// Enable the timer interrupt
 	TIMSK1 |= (1 << OCIE1A);
+	// Set the timer to CTC with prescaler 64
+	TCCR1B = 0;
+	TCNT1 = 0;
+	TCCR1A = 0;
+	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
 	// "Restore" context
 	port_RESTORE_CONTEXT();
 	// Enable interrupts during switch
@@ -192,7 +225,7 @@ void Task_init(Task * task, TaskFct function, uint8_t * stack)
 	uint8_t iterator = 31;
 	for (; iterator > 0; iterator--)
 	{
-		*stack-- = iterator;
+		*stack-- = 0;
 	}
 	// Save the pointer to be able to restore it
 	task->sp = stack;
