@@ -47,21 +47,28 @@ extern void Multitasking_init(void);
 extern void Task_init(Task *, TaskFct, uint8_t *);
 /** Queue a task. DISABLE INTERRUPTS!
  * */
-extern void _Task_setReady(Task *);
+extern void Task_setReady(Task *);
 /** Unqueue a task. DISABLE INTERRUPTS!
  *
  * Normally, this won't be needed.
  * */
-extern void _Task_setNotReady(Task *);
+extern void Task_setNotReady(Task *);
 /** Switch to highest priority task in ready queue. DISABLE INTERRUPTS!
  *
  * Don't touch!
  * */
-extern Task * _Task_getNextReady(void);
+extern Task * Task_getNextReady(void);
 /** Enforce equal timeslice scheduling. DISABLE INTERRUPTS!
  *
  * Don't touch!
  * */
-extern time_t _Task_enforceTimeslice(void);
+extern time_t Task_enforceTimeslice(uint8_t priority);
+/** Yield execution, will cause the same task to be run if it is still in
+ * the ready list.
+ * */
+extern void Task_yield(void);
+/** Return a pointer to the current running task. No need for cli/sei here.
+ * */
+extern Task * Task_getCurrent(void);
 //-----------------------------------------------------------------------------
 #endif

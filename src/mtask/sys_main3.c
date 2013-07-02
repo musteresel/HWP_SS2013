@@ -58,7 +58,7 @@ void irReader(void)
 #define INITLED(x) \
 	ledTask ## x .priority = x >> 1; \
 	Task_init(&ledTask ## x , ledFct ## x , &(ledTaskStack ## x [99])); \
-	_Task_setReady(&ledTask ## x );
+	Task_setReady(&ledTask ## x );
 	
 LEDFCT(0)
 LEDFCT(1)

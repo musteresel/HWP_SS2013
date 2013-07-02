@@ -35,6 +35,8 @@ CFLAGS += -Wundef
 CFLAGS += -std=gnu99 #-std=c99
 CFLAGS += -g3 -gdwarf-2 -pg #DEGUBING!
 CFLAGS += -fstack-usage
+CFLAGS += -I$(SOURCE_LOCATION)/ -I$(SOURCE_LOCATION)/hwplib
+
 
 LDFLAGS :=
 LDFLAGS += -Wl,--relax

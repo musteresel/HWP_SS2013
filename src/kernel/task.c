@@ -5,27 +5,26 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <stdint.h>
-//-----------------------------------------------------------------------------
 #include "kernel/task.h"
 #include "kernel/_port.h"
+#include "util/attribute.h"
+
+
+
+
 //-----------------------------------------------------------------------------
-#define COUNT_MILLISECOND ((F_CPU/TASKTIMER_PRESCALER)/1000u) // with 8Mhz => 125
-#define MAX_RR_TIME 10u // MilliSeconds
-#define MAX_DELAY_TIME ((65536u/COUNT_MILLISECOND)- 1u) // MilliSeconds
+#define TIMER_COUNT_MS ((F_CPU/TASKTIMER_PRESCALER)/1000u) // with 8Mhz => 125
+#define TASK_TIMESLICE_MS 10u // MilliSeconds
+#define TIMER_COUNT_MAX_MS ((65536u/TIMER_COUNT_MS)- 1u) // MilliSeconds
+
+
+
+
 //-----------------------------------------------------------------------------
 #define TIMER_ISR TIMER1_COMPA_vect
 
-#ifdef SCHEDDEBUG
-static struct __DEBUG
-{
-	uint8_t reason;
-	Task * from;
-	Task * to;
-	time_t time;
-	time_t rrTime;
-} DEBUG[100]; 
-static uint8_t D_iter = 0;
-#endif
+
+
 
 //-----------------------------------------------------------------------------
 static struct __TaskInfo
@@ -34,183 +33,135 @@ static struct __TaskInfo
 	Task * nextToWake;
 	Task * ready[8];
 } taskInfo = { .nextToWake = 0, .ready = {0} };
+
+
+
+
 static struct __TimeInfo
 {
 	time_t current;
 	time_t next;
 	time_t taskStart;
 } timeInfo;
+
+
+
+
+//-----------------------------------------------------------------------------
 static uint8_t idleTaskStack[50];
 static Task idleTask;
-//-----------------------------------------------------------------------------
-void Task_waitCurrent(time_t delay) __attribute__ (( hot ));
-void _waitCurrent_inner(void) __attribute__ (( naked, noinline, hot ));
-static void idleTaskFct(void) __attribute__ (( noreturn, cold ));
-void Multitasking_init(void) __attribute__ (( naked, cold ));
-void Task_init(Task * task, TaskFct function, uint8_t * stack);
-void _Task_setReady(Task * task);
-void _Task_setNotReady(Task * task) __attribute__ (( hot ));
-Task * _Task_getNextReady(void) __attribute__ (( hot ));
-time_t _Task_enforceTimeslice(void) __attribute__ (( hot ));
-//-----------------------------------------------------------------------------
-__attribute__(( flatten, hot )) ISR(TIMER_ISR, ISR_NAKED)
-{
-	// Save the context of the current task
-	port_SAVE_CONTEXT();
-	// Update time information
-	timeInfo.current = timeInfo.next;
-#ifdef SCHEDDEBUG
-DEBUG[D_iter].from = taskInfo.current;
-DEBUG[D_iter].reason = 'I';
-#endif
-	taskInfo.current->rrTime += timeInfo.current - timeInfo.taskStart;
-	// Wake tasks whose time has come
-	while (taskInfo.nextToWake &&
-			timeInfo.current == taskInfo.nextToWake->wakeTime)
-	{
-		Task * toWake = taskInfo.nextToWake;
-		taskInfo.nextToWake = toWake->next;
-		if (toWake->priority < taskInfo.current->priority)
-		{
-			taskInfo.current = toWake;
-		}
-		_Task_setReady(toWake);
-	}
-	// Enforce equal timeslice scheduling
-	time_t delay = _Task_enforceTimeslice();
-	// Check for wake "event" coming before next timeslice event
-	if (taskInfo.nextToWake)
-	{
-		time_t wakeDelay = taskInfo.nextToWake->wakeTime - timeInfo.current;
-		if (wakeDelay < delay)
-		{
-			delay = wakeDelay;
-		}
-	}
-	// Set timer
-	OCR1A = delay * COUNT_MILLISECOND;
-	// Update time information
-	timeInfo.next += delay;
-	timeInfo.taskStart = timeInfo.current;
-#ifdef SCHEDDEBUG
-DEBUG[D_iter].to = taskInfo.current;
-DEBUG[D_iter].rrTime = taskInfo.current->rrTime;
-DEBUG[D_iter++].time = timeInfo.taskStart;
-#endif
-	// Restore context of task to run
-	port_RESTORE_CONTEXT();
-	// Return and enable interrupts
-	reti();
-}
-//-----------------------------------------------------------------------------
-void Task_waitCurrent(time_t delay)
-{
-	cli();
-	taskInfo.current->wakeTime = delay;
-	// TODO: compiler optimizes to a rjmp, assure there is always a return
-	// address on the stack!
-	_waitCurrent_inner();
-}
-void _waitCurrent_inner(void)
-{
-	// Save context
-	port_SAVE_CONTEXT();
-	// Get passed parameter
-	time_t delay = taskInfo.current->wakeTime;
-	// Estimate the current time and remaining delay
-	// TODO: improve estimation
-//	time_t offset = (TCNT1 + (COUNT_MILLISECOND >> 1)) / COUNT_MILLISECOND;
-	time_t offset = TCNT1 / COUNT_MILLISECOND;
-	time_t current = timeInfo.current + offset;
-	time_t remainingDelay = timeInfo.next - current;
-	// Remove the current task from the ready list
-	_Task_setNotReady(taskInfo.current);
-	Task * toWait = taskInfo.current;
-	toWait->wakeTime = current + delay;
-	toWait->rrTime += current - timeInfo.taskStart;
-	// Find next ready task
-	timeInfo.taskStart = current;
-	taskInfo.current = _Task_getNextReady();
-	time_t rrDelay = _Task_enforceTimeslice();
-#ifdef SCHEDDEBUG
-DEBUG[D_iter].reason = 'W';
-DEBUG[D_iter].from = toWait;
-DEBUG[D_iter].to = taskInfo.current;
-DEBUG[D_iter].rrTime = taskInfo.current->rrTime;
-DEBUG[D_iter++].time = current;
-#endif
-	// Insert the task in the wait list
-	Task * last = 0;
-	Task * iterator = taskInfo.nextToWake;
-	while (iterator && (iterator->wakeTime - current) < delay)
-	{
-		last = iterator;
-		iterator = iterator->next;
-	}
-	if (last)
-	{
-		last->next = toWait;
-	}
-	else
-	{
-		taskInfo.nextToWake = toWait;
-	}
-	toWait->next = iterator;
-	// Determine shortest delay
-	if (rrDelay < delay)
-	{
-		delay = rrDelay;
-	}
-	// If neccessary, reset the timer
-	if (delay < remainingDelay)
-	{
-		OCR1A = (offset + delay) * COUNT_MILLISECOND;
-//		timeInfo.current = current;
-		timeInfo.next = current + delay;
-	}
-	// Switch to the ready task with now highest priority
-	port_RESTORE_CONTEXT();
-	reti();
-}
+
+
+
+
 //-----------------------------------------------------------------------------
 static void idleTaskFct(void)
 {
 	for (;;)
 	{
-		// TODO: will cause problems with other tasks accessing MCUCR
-		MCUCR |= (1 << SE);
 		sleep_cpu();
 	}
 }
+
+
+
+
 //-----------------------------------------------------------------------------
-void Multitasking_init(void)
+time_t Task_enforceTimeslice(uint8_t priority)
 {
-	// Prepare the idle task
-	idleTask.priority = 7;
-	Task_init(&idleTask, idleTaskFct, &(idleTaskStack[49]));
-	_Task_setReady(&idleTask);
-	// Start at time 0
-	timeInfo.taskStart = 0;
-	timeInfo.current = 0;
-	// Switch to the task with highest priority
-	taskInfo.current = _Task_getNextReady();
-	// Apply timeslice and compute next time
-	timeInfo.next = timeInfo.current + _Task_enforceTimeslice();
-	// Set timer
-	OCR1A = COUNT_MILLISECOND * timeInfo.next;
-	// Enable the timer interrupt
-	TIMSK1 |= (1 << OCIE1A);
-	// Set the timer to CTC with prescaler 64
-	TCCR1B = 0;
-	TCNT1 = 0;
-	TCCR1A = 0;
-	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
-	// "Restore" context
-	port_RESTORE_CONTEXT();
-	// Enable interrupts during switch
-	reti();
+	Task * task = taskInfo.ready[priority];
+	time_t delay;
+	if (task->next == task)
+	{
+		task->rrTime = 0;
+		delay = TIMER_COUNT_MAX_MS;
+	}
+	else
+	{
+		while (task->rrTime >= TASK_TIMESLICE_MS)
+		{
+			task->rrTime = 0;
+			task = task->next;
+		}
+		taskInfo.ready[priority] = task;
+		delay = TASK_TIMESLICE_MS - task->rrTime;
+	}
+	return delay;
 }
-//-----------------------------------------------------------------------------
+
+
+
+
+Task * Task_getNextReady()
+{
+	uint8_t priority;
+	if (taskInfo.ready[0]) priority = 0;
+	else if (taskInfo.ready[1]) priority = 1;
+	else if (taskInfo.ready[2]) priority = 2;
+	else if (taskInfo.ready[3]) priority = 3;
+	else if (taskInfo.ready[4]) priority = 4;
+	else if (taskInfo.ready[5]) priority = 5;
+	else if (taskInfo.ready[6]) priority = 6;
+	else priority = 7;
+	taskInfo.ready[priority]->wakeTime = Task_enforceTimeslice(priority);
+	return taskInfo.ready[priority];
+}
+
+
+
+
+void Task_setReady(Task * task)
+{
+	if (taskInfo.ready[task->priority])
+	{
+		task->next = taskInfo.ready[task->priority]->next;
+		taskInfo.ready[task->priority]->next = task;
+		taskInfo.ready[task->priority] = task;
+		// TODO: could cause starvation
+	}
+	else
+	{
+		taskInfo.ready[task->priority] = task;
+		task->next = task;
+	}
+}
+
+
+
+
+void Task_setNotReady(Task * task)
+{
+	if (task->next == task)
+	{
+		taskInfo.ready[task->priority] = 0;
+	}
+	else
+	{
+		// NOTE: increases performance, adds jitter
+		Task * findPrevious = taskInfo.ready[task->priority];
+		while (findPrevious->next != task)
+		{
+			findPrevious = findPrevious->next;
+		}
+		findPrevious->next = task->next;
+		if (taskInfo.ready[task->priority] == task)
+		{
+			taskInfo.ready[task->priority] = findPrevious;
+		}
+	}
+}
+
+
+
+
+Task * Task_getCurrent(void)
+{
+	return taskInfo.current;
+}
+
+
+
+
 void Task_init(Task * task, TaskFct function, uint8_t * stack)
 {
 	// The "bottom" byte to be in use by the task
@@ -232,72 +183,163 @@ void Task_init(Task * task, TaskFct function, uint8_t * stack)
 	// The task has not run, so it's timeslice usage is 0
 	task->rrTime = 0;
 }
-void _Task_setReady(Task * task)
+
+
+
+
+ATTRIBUTE( flatten ) ISR(TIMER_ISR, ISR_NAKED)
 {
-	if (taskInfo.ready[task->priority])
+	// Save the context of the current task. The current instruction
+	// pointer has been saved on the stack by the processor
+	port_SAVE_CONTEXT();
+	// Update time information
+	timeInfo.current = timeInfo.next;
+	taskInfo.current->rrTime += timeInfo.current - timeInfo.taskStart;
+	// Wake tasks which are ready
+	while (taskInfo.nextToWake &&
+			timeInfo.current == taskInfo.nextToWake->wakeTime)
 	{
-		task->next = taskInfo.ready[task->priority]->next;
-		taskInfo.ready[task->priority]->next = task;
-		taskInfo.ready[task->priority] = task;
-		// TODO: could cause starvation
+		Task * toWake = taskInfo.nextToWake;
+		taskInfo.nextToWake = toWake->next;
+		if (toWake->priority < taskInfo.current->priority)
+		{
+			taskInfo.current = toWake;
+		}
+		Task_setReady(toWake);
+	}
+	// Enforce equal timeslice scheduling on priority level
+	time_t delay = Task_enforceTimeslice(taskInfo.current->priority);
+	// Check for wake "event" coming before next timeslice event
+	if (taskInfo.nextToWake)
+	{
+		time_t wakeDelay = taskInfo.nextToWake->wakeTime - timeInfo.current;
+		if (wakeDelay < delay)
+		{
+			delay = wakeDelay;
+		}
+	}
+	// Set the timer to fire at the correct time
+	OCR1A = delay * TIMER_COUNT_MS;
+	// Update time information
+	timeInfo.next += delay;
+	timeInfo.taskStart = timeInfo.current;
+	// Restore context of task to run
+	port_RESTORE_CONTEXT();
+	// Return and enable interrupts
+	reti();
+}
+
+
+
+
+ATTRIBUTE( naked, noinline ) static void waitCurrent_inner(void)
+{
+	// Save the current tasks context. This assumes that a return address
+	// is on the top of the stack!
+	port_SAVE_CONTEXT();
+	// Get hacky passed parameter
+	time_t delay = taskInfo.current->wakeTime;
+	// Calculate time information
+	time_t offset = TCNT1 / TIMER_COUNT_MS;
+	time_t current = timeInfo.current + offset;
+	time_t remainingDelay = timeInfo.next - current;
+	// Remove the current task from the ready list and save its stats
+	Task * toWait = taskInfo.current;
+	Task_setNotReady(toWait);
+	toWait->wakeTime = current + delay;
+	toWait->rrTime += current - timeInfo.taskStart;
+	// Insert the task in the wait list
+	Task * last = 0;
+	Task * iterator = taskInfo.nextToWake;
+	while (iterator && (iterator->wakeTime - current) < delay)
+	{
+		last = iterator;
+		iterator = iterator->next;
+	}
+	if (last)
+	{
+		last->next = toWait;
 	}
 	else
 	{
-		taskInfo.ready[task->priority] = task;
-		task->next = task;
+		taskInfo.nextToWake = toWait;
 	}
+	toWait->next = iterator;
+	// Select a new task and recalculate timer value
+	timeInfo.taskStart = current;
+	taskInfo.current = Task_getNextReady();
+	if (taskInfo.current->wakeTime < delay)
+	{
+		delay = taskInfo.current->wakeTime;
+	}
+	if (delay < remainingDelay)
+	{
+		OCR1A = (offset + delay) * TIMER_COUNT_MS;
+		timeInfo.next = current + delay;
+	}
+	// Restore the context and return to the now running task
+	port_RESTORE_CONTEXT();
+	reti();
 }
-void _Task_setNotReady(Task * task)
+
+
+
+
+void Task_waitCurrent(time_t delay)
 {
-	if (task->next == task)
-	{
-		taskInfo.ready[task->priority] = 0;
-	}
-	else
-	{
-		// NOTE: increases performance, adds jitter
-		Task * findPrevious = taskInfo.ready[task->priority];
-		while (findPrevious->next != task)
-		{
-			findPrevious = findPrevious->next;
-		}
-		findPrevious->next = task->next;
-		if (taskInfo.ready[task->priority] == task)
-		{
-			taskInfo.ready[task->priority] = findPrevious;
-		}
-	}
+	taskInfo.current->wakeTime = delay;
+	waitCurrent_inner();
 }
-Task * _Task_getNextReady(void)
+
+
+
+
+ATTRIBUTE( naked ) void Multitasking_init(void)
 {
-	if (taskInfo.ready[0]) return taskInfo.ready[0];
-	if (taskInfo.ready[1]) return taskInfo.ready[1];
-	if (taskInfo.ready[2]) return taskInfo.ready[2];
-	if (taskInfo.ready[3]) return taskInfo.ready[3];
-	if (taskInfo.ready[4]) return taskInfo.ready[4];
-	if (taskInfo.ready[5]) return taskInfo.ready[5];
-	if (taskInfo.ready[6]) return taskInfo.ready[6];
-	return taskInfo.ready[7];
+	// Prepare the idle task
+	idleTask.priority = 7;
+	Task_init(&idleTask, idleTaskFct, &(idleTaskStack[49]));
+	Task_setReady(&idleTask);
+	// Start at time 0
+	timeInfo.taskStart = 0;
+	timeInfo.current = 0;
+	// Switch to the task with highest priority
+	taskInfo.current = Task_getNextReady();
+	// Apply timeslice and compute next time
+	timeInfo.next = timeInfo.current + taskInfo.current->wakeTime;
+	// Set timer
+	OCR1A = TIMER_COUNT_MS * timeInfo.next;
+	// Enable the timer interrupt
+	TIMSK1 |= (1 << OCIE1A);
+	// Set the timer to CTC with prescaler 64
+	TCCR1B = 0;
+	TCNT1 = 0;
+	TCCR1A = 0;
+	TCCR1B = (1 << WGM12) | (1 << CS11) | (1 << CS10);
+	// "Restore" context
+	port_RESTORE_CONTEXT();
+	// Enable interrupts during switch
+	reti();
 }
-time_t _Task_enforceTimeslice(void)
+
+
+
+
+ATTRIBUTE( naked ) void Task_yield(void)
 {
-	time_t rrDelay;
-	if (taskInfo.current->next == taskInfo.current)
+	port_SAVE_CONTEXT();
+	cli();
+	time_t offset = TCNT1 / TIMER_COUNT_MS;
+	taskInfo.current->rrTime += offset;
+	taskInfo.current = Task_getNextReady();
+	time_t remainingDelay = timeInfo.next - timeInfo.current;
+	time_t delay = taskInfo.current->wakeTime;
+	if (delay < remainingDelay)
 	{
-		// Only 1 task on priority, so no timeslicing needed
-		taskInfo.current->rrTime = 0;
-		rrDelay = MAX_DELAY_TIME;
+		OCR1A = (offset + delay) * TIMER_COUNT_MS;
+		timeInfo.next = timeInfo.current + offset + delay;
 	}
-	else
-	{
-		while (taskInfo.current->rrTime >= MAX_RR_TIME)
-		{
-			taskInfo.current->rrTime = 0;
-			taskInfo.ready[taskInfo.current->priority] = taskInfo.current->next;
-			taskInfo.current = taskInfo.current->next;
-		}
-		rrDelay = MAX_RR_TIME - taskInfo.current->rrTime;
-	}
-	return rrDelay;
+	port_RESTORE_CONTEXT();
+	reti();
 }
 
