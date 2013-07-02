@@ -31,7 +31,7 @@ CFLAGS += -Wall
 CFLAGS += -Wstrict-prototypes
 CFLAGS += -Wundef
 #CFLAGS += -Wunreachable-code
-#CFLAGS += -Wsign-compare
+CFLAGS += -Wsign-compare
 CFLAGS += -std=gnu99 #-std=c99
 CFLAGS += -g3 -gdwarf-2 -pg #DEGUBING!
 CFLAGS += -fstack-usage
