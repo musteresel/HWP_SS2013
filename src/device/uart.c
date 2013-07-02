@@ -1,8 +1,13 @@
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "util/ringbuffer.h"
 #include "kernel/semaphore.h"
 
-
+#define UART_BUFFER_SIZE 64
+#define BAUD_RATE0 38400
+#define BAUD_RATE1 38400
+#define BAUD_RATE2 38400
+#define BAUD_RATE3 38400
 
 
 //-----------------------------------------------------------------------------
@@ -46,9 +51,9 @@ UART_DATA(3)
 
 #define UART_INIT(n) \
 	uart	= &(uart ## n); \
-	uart->reg->UCSRB = (uint8_t *)&UCSR ## n ## B; \
-	uart->reg->UDR = (uint8_t *)&UDR ## n; \
-	uart->txIntMask = (1 << RXIE ## n); \
+	uart->reg.UCSRB = (uint8_t *)&UCSR ## n ## B; \
+	uart->reg.UDR = (uint8_t *)&UDR ## n; \
+	uart->txIntMask = (1 << UDRIE ## n); \
 	Ringbuffer_init(&(uart->rxBuffer),uart ## n ## Buffer[0],UART_BUFFER_SIZE); \
 	Ringbuffer_init(&(uart->txBuffer),uart ## n ## Buffer[1],UART_BUFFER_SIZE); \
 	Semaphore_init(&(uart->rxEmptyCount),UART_BUFFER_SIZE); \
@@ -61,9 +66,8 @@ UART_DATA(3)
 	UBRR ## n ## H = (F_CPU / (BAUD_RATE ## n * 16L) - 1) >> 8; \
 	UCSR ## n ## A = 0x00; \
 	UCSR ## n ## B = \
-		uart->txIntMask | (1 << UDRIE ## n) | \
-		(1 << TXEN ## n) | (1 << RXEN ## n); \
-	UCSR ## n ## C = 0x86;
+		uart->txIntMask | (1 << RXCIE ## n) | \
+		(1 << TXEN ## n) | (1 << RXEN ## n);
 void Uart_init(void)
 {
 	Uart * uart;
@@ -81,6 +85,7 @@ static void Uart_transmit(Uart * uart, uint8_t data)
 	Semaphore_wait(&(uart->txEmptyCount));
 	Semaphore_wait(&(uart->txLock));
 	Ringbuffer_put(&(uart->txBuffer),data);
+	*(uart->reg.UCSRB) |= uart->txIntMask;
 	Semaphore_signal(&(uart->txLock));
 	Semaphore_signal(&(uart->txFillCount));
 }
@@ -107,7 +112,7 @@ static uint8_t Uart_receive(Uart * uart)
 	{ \
 		Uart_transmit(&(uart ## n), data); \
 	} \
-	uint8_t Uart ## n ## _receive() \
+	uint8_t Uart ## n ## _receive(void) \
 	{ \
 		return Uart_receive(&(uart ## n)); \
 	}
@@ -122,7 +127,7 @@ UART_TRANSCEIVER_FCTS(3)
 static void Uart_rxHandler(Uart * uart)
 {
 	// Get byte
-	uint8_t data = *(uart->reg->UDR);
+	uint8_t data = *(uart->reg.UDR);
 	// Use nonblocking try!
 	if (Semaphore_try(&(uart->rxEmptyCount)))
 	{
@@ -145,14 +150,14 @@ static void Uart_txHandler(Uart * uart)
 	if (Semaphore_try(&(uart->txFillCount)))
 	{
 		// Get next byte and write to UDR
-		*(uart->reg->UDR) = Ringbuffer_get(&(uart->txBuffer));
+		*(uart->reg.UDR) = Ringbuffer_get(&(uart->txBuffer));
 		Semaphore_signal(&(uart->txEmptyCount));
 	}
 	else
 	{
 		// Disable the transmit interrupt if there is nothing to be
 		// transmitted
-		*(uart->reg->UCSRB) &= ~(uart->txIntMask);
+		*(uart->reg.UCSRB) &= ~(uart->txIntMask);
 	}
 }
 

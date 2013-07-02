@@ -15,6 +15,9 @@ typedef struct __Semaphore_t
 
 
 //-----------------------------------------------------------------------------
+/** Try on a semaphore
+ * */
+extern uint8_t Semaphore_try(Semaphore *);
 /** Wait on a semaphore
  * */
 extern void Semaphore_wait(Semaphore *);
@@ -23,7 +26,7 @@ extern void Semaphore_wait(Semaphore *);
 extern void Semaphore_signal(Semaphore *);
 /** Init a semaphore, must be done during startup
  * */
-extern void Semaphore_init(Semaphore *);
+extern void Semaphore_init(Semaphore *, uint8_t );
 
 
 

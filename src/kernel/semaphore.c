@@ -6,13 +6,31 @@
 
 
 //-----------------------------------------------------------------------------
-void Semaphore_wait(Semaphore * semaphore)
+uint8_t Semaphore_try(Semaphore * semaphore)
 {
+	uint8_t sreg = SREG;
 	cli();
 	if (semaphore->count > 0)
 	{
 		semaphore->count--;
-		sei();
+		SREG = sreg;
+		return 1;
+	}
+	SREG = sreg;
+	return 0;
+}
+
+
+
+
+void Semaphore_wait(Semaphore * semaphore)
+{
+	uint8_t sreg = SREG;
+	cli();
+	if (semaphore->count > 0)
+	{
+		semaphore->count--;
+		SREG = sreg;
 	}
 	else
 	{
@@ -43,6 +61,7 @@ void Semaphore_wait(Semaphore * semaphore)
 
 void Semaphore_signal(Semaphore * semaphore)
 {
+	uint8_t sreg = SREG;
 	cli();
 	if (semaphore->waiting)
 	{
@@ -54,7 +73,7 @@ void Semaphore_signal(Semaphore * semaphore)
 	else
 	{
 		semaphore->count++;
-		sei();
+		SREG = sreg;
 	}
 }
 
