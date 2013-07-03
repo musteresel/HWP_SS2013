@@ -103,8 +103,10 @@ Task * Task_getNextReady()
 	else if (taskInfo.ready[5]) priority = 5;
 	else if (taskInfo.ready[6]) priority = 6;
 	else priority = 7;
-	taskInfo.ready[priority]->wakeTime = Task_enforceTimeslice(priority);
-	return taskInfo.ready[priority];
+	time_t delay = Task_enforceTimeslice(priority);
+	Task * next = taskInfo.ready[priority];
+	next->wakeTime = delay;
+	return next;
 }
 
 
