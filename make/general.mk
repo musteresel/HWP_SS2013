@@ -17,6 +17,7 @@ CPUFLAGS := -mmcu=atmega1280
 
 #CPPFLAGS := -DF_CPU=16000000
 CPPFLAGS := -DF_CPU=8000000
+CPPFLAGS += -DDEBUG_SIMAVR
 
 CFLAGS := 
 CFLAGS += -Os
@@ -36,8 +37,10 @@ CFLAGS += -std=gnu99 #-std=c99
 CFLAGS += -g3 -gdwarf-2 -pg #DEGUBING!
 CFLAGS += -fstack-usage
 CFLAGS += -I$(SOURCE_LOCATION)/ -I$(SOURCE_LOCATION)/hwplib
+CFLAGS += -I/usr/include/simavr/avr/
 
 
 LDFLAGS :=
 LDFLAGS += -Wl,--relax
+LDFLAGS += -Wl,--undefined=_mmcu,--section-start=.mmcu=0x910000
 

@@ -12,6 +12,17 @@
 
 volatile uint16_t a;
 
+#ifdef DEBUG_SIMAVR
+#include "avr_mcu_section.h"
+AVR_MCU(F_CPU, "atmega1280");
+const struct avr_mmcu_vcd_trace_t _mytrace[]  _MMCU_ = {
+	{ AVR_MCU_VCD_SYMBOL("UDR0"), .what = (void*)&UDR0, },
+	{ AVR_MCU_VCD_SYMBOL("UDRE0"), .mask = (1 << UDRE0), .what = (void*)&UCSR0A, },
+	{ AVR_MCU_VCD_SYMBOL("UDRIE0"), .mask = (1 << UDRIE0), .what = (void*)&UCSR0B, },
+};
+#endif
+
+
 Task irReaderTask;
 uint8_t irReaderStack[200];
 
