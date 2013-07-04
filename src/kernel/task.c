@@ -59,7 +59,9 @@ static void idleTaskFct(void)
 {
 	for (;;)
 	{
-		sleep_cpu();
+		asm volatile ("nop");
+//		MCUCR |= (1 << SE);
+//		sleep_cpu();
 	}
 }
 
@@ -189,7 +191,7 @@ void Task_init(Task * task, TaskFct function, uint8_t * stack)
 
 
 
-ATTRIBUTE( flatten ) ISR(TIMER_ISR, ISR_NAKED)
+ISR(TIMER_ISR, ISR_NAKED)
 {
 	// Save the context of the current task. The current instruction
 	// pointer has been saved on the stack by the processor
@@ -289,8 +291,10 @@ ATTRIBUTE( naked, noinline ) static void waitCurrent_inner(void)
 
 void Task_waitCurrent(time_t delay)
 {
+	cli();
 	taskInfo.current->wakeTime = delay;
 	waitCurrent_inner();
+	sei();
 }
 
 
