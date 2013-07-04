@@ -64,10 +64,11 @@ UART_DATA(3)
 	Semaphore_init(&(uart->txLock),1); \
 	UBRR ## n ## L = (uint8_t)(F_CPU / (BAUD_RATE ## n * 16L) - 1); \
 	UBRR ## n ## H = (F_CPU / (BAUD_RATE ## n * 16L) - 1) >> 8; \
-	UCSR ## n ## A = 0x00; \
+	UCSR ## n ## A = (1 << 5); \
 	UCSR ## n ## B = \
 		uart->txIntMask | (1 << RXCIE ## n) | \
-		(1 << TXEN ## n) | (1 << RXEN ## n);
+		(1 << TXEN ## n) | (1 << RXEN ## n); \
+	UCSR ## n ## C = 0x86;
 void Uart_init(void)
 {
 	Uart * uart;
@@ -85,9 +86,9 @@ static void Uart_transmit(Uart * uart, uint8_t data)
 	Semaphore_wait(&(uart->txEmptyCount));
 	Semaphore_wait(&(uart->txLock));
 	Ringbuffer_put(&(uart->txBuffer),data);
-	*(uart->reg.UCSRB) |= uart->txIntMask;
 	Semaphore_signal(&(uart->txLock));
 	Semaphore_signal(&(uart->txFillCount));
+	*(uart->reg.UCSRB) |= uart->txIntMask;
 }
 
 
