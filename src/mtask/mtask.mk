@@ -1,7 +1,10 @@
 
 SOURCES := mtask/sys_main3.c \
 	kernel/task.c \
+	kernel/memory.c \
+	kernel/message.c \
 	kernel/semaphore.c \
+	kernel/pipe.c \
 	util/ringbuffer.c \
 	device/uart.c
 #	sensor/ir.c \
