@@ -12,17 +12,19 @@
 /** Macro to create a static available task.
  *
  * name = name of the task
+ * prio = priority
  * fct = function name to execute (forward declarated as static!)
  * stacksize = size of stack
  * ready = 0 -> don't set as ready, else set as ready
  * */
-#define TASK_STATIC(name, fct, stacksize, ready) \
+#define TASK_STATIC(name, prio, fct, stacksize, ready) \
 	NOINIT Task name; \
 	NOINIT static uint8_t name ## Stack[stacksize]; \
 	static void fct (void); \
 	ATTRIBUTE( constructor, used ) \
 	void Task_ctor_ ## name (void) \
 	{ \
+		name.priority = prio; \
 		Task_init(&name, fct, &(name ## Stack[stacksize - 1])); \
 		if (ready) Task_setReady(&name); \
 	}
