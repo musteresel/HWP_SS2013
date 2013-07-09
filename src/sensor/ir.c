@@ -1,5 +1,13 @@
 #include "sensor/ir.h"
 #include "IO/ADC/ADC.h"
+#include "util/attribute.h"
+
+ATTRIBUTE( constructor, used ) void Ir_ctor(void)
+{
+	ADC_init();
+}
+
+
 
 const dist_t lut[] = 
 {
@@ -9,14 +17,14 @@ const dist_t lut[] =
 	13, 12, 12, 12, 12, 11, 11, 11, 10, 10  , 10, 10, 9, 9, 9, 9, 8, 8
 };
 
-dist_t readIR(uint8_t pos)
+dist_t Ir_read(uint8_t pos)
 {
 	uint16_t adc = ADC_getCurrentValue(pos);
 	uint8_t adcR = adc & 0x07;
 	adc >>= 3;
 	if (adc > 86u)
 	{
-		return FROM_CM(4u);
+		return IR_FROM_CM(4u);
 	}
 	if (adc < 13u)
 	{
@@ -32,7 +40,5 @@ dist_t readIR(uint8_t pos)
 		return lut[adc];
 	}
 }
-
-
 
 

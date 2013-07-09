@@ -205,14 +205,16 @@ ISR(TIMER_ISR, ISR_NAKED)
 	{
 		Task * toWake = taskInfo.nextToWake;
 		taskInfo.nextToWake = toWake->next;
-		if (toWake->priority < taskInfo.current->priority)
+		/*if (toWake->priority < taskInfo.current->priority)
 		{
 			taskInfo.current = toWake;
-		}
+		}*/
 		Task_setReady(toWake);
 	}
+	taskInfo.current = Task_getNextReady();
+	time_t delay = taskInfo.current->wakeTime;
 	// Enforce equal timeslice scheduling on priority level
-	time_t delay = Task_enforceTimeslice(taskInfo.current->priority);
+	//time_t delay = Task_enforceTimeslice(taskInfo.current->priority);
 	// Check for wake "event" coming before next timeslice event
 	if (taskInfo.nextToWake)
 	{
@@ -331,14 +333,25 @@ ATTRIBUTE( naked ) void Multitasking_init(void)
 
 
 
-ATTRIBUTE( naked ) void Task_yield(void)
+void Task_yield(void)
+{
+	//asm volatile ("call yield_inner");
+	cli();
+	time_t offset = TCNT1 / TIMER_COUNT_MS;
+	taskInfo.current->rrTime += offset;
+	timeInfo.next = timeInfo.current + offset;
+	TCNT0 = 0;
+	asm volatile ("call __vector_17");
+}
+
+ATTRIBUTE( naked, noinline ) void yield_inner(void)
 {
 	port_SAVE_CONTEXT();
 	cli();
 	time_t offset = TCNT1 / TIMER_COUNT_MS;
 	taskInfo.current->rrTime += offset;
 	taskInfo.current = Task_getNextReady();
-	time_t remainingDelay = timeInfo.next - timeInfo.current;
+	time_t remainingDelay = timeInfo.next - (timeInfo.current + offset);
 	time_t delay = taskInfo.current->wakeTime;
 	if (delay < remainingDelay)
 	{

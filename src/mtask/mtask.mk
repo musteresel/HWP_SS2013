@@ -2,11 +2,15 @@
 SOURCES := mtask/sys_main3.c \
 	kernel/task.c \
 	kernel/semaphore.c \
+	kernel/pipe.c \
 	util/ringbuffer.c \
-	device/uart.c
-#	sensor/ir.c \
+	device/uart.c \
+	util/communication.c \
+	sensor/ir.c \
 	hwplib/IO/ADC/ADC.c \
-	hwplib/communication/communication.c \
+	irSensors.c \
+	util/property.c
+#	hwplib/communication/communication.c \
 	hwplib/IO/uart/uart.c
 
 

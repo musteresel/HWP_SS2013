@@ -23,7 +23,7 @@ CFLAGS :=
 CFLAGS += -Os
 #CFLAGS += -O3
 #CFLAGS += -O0
-CFLAGS += -funsigned-char
+#CFLAGS += -funsigned-char
 CFLAGS += -funsigned-bitfields
 CFLAGS += -fpack-struct
 CFLAGS += -fshort-enums
@@ -38,6 +38,7 @@ CFLAGS += -g3 -gdwarf-2 -pg #DEGUBING!
 CFLAGS += -fstack-usage
 CFLAGS += -I$(SOURCE_LOCATION)/ -I$(SOURCE_LOCATION)/hwplib
 CFLAGS += -I/usr/include/simavr/avr/
+CFLAGS += 
 
 
 LDFLAGS :=
