@@ -1,4 +1,7 @@
 #include <stdint.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "kernel/task.h"
@@ -333,5 +336,25 @@ uint8_t Communication_readPacket(uint8_t * buffer, uint8_t max)
 			return 0;
 		}
 	} while(1);
+}
+
+
+
+
+void Communication_log(uint8_t level, const char* format, ...)
+{
+	char buff[81];
+	char * message;
+	
+	va_list argp;
+	va_start(argp, format);
+	
+	message = (buff+1);
+	buff[0]=level;
+	
+	vsnprintf(message,80, format, argp);
+	va_end(argp);
+
+	Communication_writePacket(0, (uint8_t *)(&buff[0]), strlen(message)+1);
 }
 
