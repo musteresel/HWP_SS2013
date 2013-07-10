@@ -7,6 +7,7 @@ SOURCES := \
  util/ringbuffer.c \
  util/property.c \
  sensor/ir.c \
+ sensor/incremental.c \
  hwplib/IO/ADC/ADC.c \
  communication.c \
  alive.c \
