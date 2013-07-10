@@ -14,11 +14,11 @@
 //-----------------------------------------------------------------------------
 void Ringbuffer_put(Ringbuffer * buffer, uint8_t data)
 {
-  *(buffer->write) = data;
-  (buffer->write)++;
-  if ((buffer->write) == (buffer->end))
+  buffer->base[write] = data;
+  buffer->write++;
+  if (buffer->write == buffer->end)
   {
-    buffer->write = buffer->start;
+    buffer->write = 0;
   }
 }
 
@@ -27,11 +27,11 @@ void Ringbuffer_put(Ringbuffer * buffer, uint8_t data)
 
 uint8_t Ringbuffer_get(Ringbuffer * buffer)
 {
-  uint8_t data = *(buffer->read);
-  (buffer->read)++;
-  if ((buffer->read) == (buffer->end))
+  uint8_t data = buffer->base[read];
+  buffer->read++;
+  if (buffer->read == buffer->end)
   {
-    buffer->read = buffer->start;
+    buffer->read = 0;
   }
   return data;
 }
@@ -41,9 +41,14 @@ uint8_t Ringbuffer_get(Ringbuffer * buffer)
 
 void Ringbuffer_init(Ringbuffer * buffer, uint8_t memory[], uint8_t size)
 {
-  buffer->start = memory;
-  buffer->end = buffer->start + size;
-  buffer->write = buffer->start;
-  buffer->read = buffer->start;
+  buffer->base = memory;
+  buffer->end = size;
+  buffer->write = 0;
+  buffer->read = 0;
 }
 
+
+uint8_t Ringbuffer_empty(Ringbuffer * buffer)
+{
+	return (buffer->write == buffer->read);
+}

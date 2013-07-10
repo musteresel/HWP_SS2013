@@ -3,10 +3,10 @@
 
 typedef struct __Ringbuffer_t
 {
-	uint8_t * read;
-	uint8_t * write;
-	uint8_t * end;
-	uint8_t * start;
+	uint8_t * base;
+	uint8_t  write;
+	uint8_t  end;
+	uint8_t  start;
 } Ringbuffer;
 
 
@@ -16,7 +16,7 @@ typedef struct __Ringbuffer_t
 extern void Ringbuffer_init(Ringbuffer *, uint8_t[], uint8_t);
 extern void Ringbuffer_put(Ringbuffer *, uint8_t);
 extern uint8_t Ringbuffer_get(Ringbuffer *);
-
+extern uint8_t Ringbuffer_empty(Ringbuffer *);
 
 #endif
 
