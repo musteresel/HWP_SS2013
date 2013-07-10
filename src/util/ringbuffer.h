@@ -5,8 +5,8 @@ typedef struct __Ringbuffer_t
 {
 	uint8_t * base;
 	uint8_t  write;
+	uint8_t  read;
 	uint8_t  end;
-	uint8_t  start;
 } Ringbuffer;
 
 

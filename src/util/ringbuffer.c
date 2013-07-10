@@ -14,7 +14,7 @@
 //-----------------------------------------------------------------------------
 void Ringbuffer_put(Ringbuffer * buffer, uint8_t data)
 {
-  buffer->base[write] = data;
+  buffer->base[buffer->write] = data;
   buffer->write++;
   if (buffer->write == buffer->end)
   {
@@ -27,7 +27,7 @@ void Ringbuffer_put(Ringbuffer * buffer, uint8_t data)
 
 uint8_t Ringbuffer_get(Ringbuffer * buffer)
 {
-  uint8_t data = buffer->base[read];
+  uint8_t data = buffer->base[buffer->read];
   buffer->read++;
   if (buffer->read == buffer->end)
   {

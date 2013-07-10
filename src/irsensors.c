@@ -17,7 +17,7 @@ IrSensorData irSensorData;
 
 /** Task to read ir values
  * */
-TASK_STATIC(irReader,1,irReaderFct,200,0);
+TASK_STATIC(irReader,1,irReaderFct,200,1);
 
 
 

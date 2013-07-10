@@ -259,7 +259,7 @@ ISR(USART0_UDRE_vect)
 
 
 //-----------------------------------------------------------------------------
-void Communication_writePacket(uint8_t channel, int8_t * packet, uint8_t size)
+void Communication_writePacket(uint8_t channel, uint8_t * packet, uint8_t size)
 {
 	uint8_t iterator = 0;
 	// Start write to ensure no other task is writing to the transmitter task
