@@ -87,11 +87,19 @@ void Motor_set5(int16_t velocity)
 {
 	if (velocity >= 0)
 	{
+		if (velocity > 253)
+		{
+			velocity = 253;
+		}
 		OCR5AL = velocity & 0xFF;
 		OCR5BL = 0x00;
 	}
 	else
 	{
+		if (velocity < -253)
+		{
+			velocity = -253;
+		}
 		OCR5AL = 0x00;
 		OCR5BL = (-velocity) & 0xFF;
 	}

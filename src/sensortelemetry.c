@@ -26,7 +26,7 @@ typedef struct __SensorTelemetrie_t
 //-----------------------------------------------------------------------------
 /** Task sending telemetry data
  * */
-TASK_STATIC(telemetrieSender,6,telemetrieSenderFct,100,1);
+TASK_STATIC(telemetrieSender,6,telemetrieSenderFct,100,0);
 
 
 
@@ -37,16 +37,16 @@ TASK_STATIC(telemetrieSender,6,telemetrieSenderFct,100,1);
  * */
 void telemetrieSenderFct(void)
 {
-	IrSensorData data;
+	IrSensorData ir;
 	do
 	{
 		Task_waitCurrent(1000);
 		Property_copy(
-				(uint8_t*)&data,(uint8_t*)&irSensorData,sizeof(IrSensorData));
+				(uint8_t*)&ir,(uint8_t*)&irSensorData,sizeof(IrSensorData));
 		SensorTelemetrie telemetrie;
-		telemetrie.ultra = data.front;
-		telemetrie.inf1 = data.left;
-		telemetrie.inf2 = data.right;
+		telemetrie.ultra = ir.front;
+		telemetrie.inf1 = ir.left;
+		telemetrie.inf2 = ir.right;
 		Communication_writePacket(1,(uint8_t *)&telemetrie,sizeof(SensorTelemetrie));
 	} while (1);
 }

@@ -2,6 +2,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "util/attribute.h"
+#include "sensor/incremental.h"
 
 
 
@@ -18,7 +19,7 @@
  *
  * TODO
  * */
-#define PULSE_ROT 24
+#define PULSE_ROT (24 * 4)
 
 
 
@@ -46,7 +47,7 @@ static uint8_t incHistory2;
 
 /** Variable to store ticks produced by both incremental sensors.
  * */
-volatile static IncrementalTicks incrementalTicks;
+static volatile IncrementalTicks incrementalTicks;
 
 
 
@@ -118,7 +119,7 @@ ISR(PCINT0_vect)
 	uint8_t combined1 = (incHistory1 << 2) | incState1;
 	uint8_t combined2 = (incHistory2 << 2) | incState2;
 	// Update tick information of first sensor
-	switch (combined1)
+	switch (combined2)
 	{
 		case 4:
 		case 2:
@@ -136,19 +137,19 @@ ISR(PCINT0_vect)
 			break;
 	}
 	// Update tick information of second sensor
-	switch (combined2)
+	switch (combined1)
 	{
 		case 4:
 		case 2:
 		case 11:
 		case 13:
-			incrementalTicks.right++;
+			incrementalTicks.right--;
 			break;
 		case 7:
 		case 14:
 		case 8:
 		case 1:
-			incrementalTicks.right--;
+			incrementalTicks.right++;
 			break;
 		default:
 			break;
@@ -173,8 +174,8 @@ WheelDistance Incremental_getDistance(void)
 	incrementalTicks.left = incrementalTicks.right = 0;
 	sei();
 	WheelDistance distance;
-	distance.left = (int16_t)data.left * (DIAMETER_MM * 3.14 / PULSE_ROT);
-	distance.right = (int16_t)data.right * (DIAMETER_MM * 3.14 / PULSE_ROT);
+	distance.left = (int16_t)(data.left * DIAMETER_MM * 3.14 )/ PULSE_ROT;
+	distance.right = (int16_t)(data.right * DIAMETER_MM * 3.14 )/ PULSE_ROT;
 	return distance;
 }
 

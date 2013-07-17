@@ -13,7 +13,7 @@ static void aliveFct(void)
 	Task_waitCurrent(113);
 	do
 	{
-		Task_waitCurrent(2000);
+		Task_waitCurrent(5000);
 		Communication_log(COMMUNICATION_FINE, "Alive: %u", aliveCount);
 		aliveCount++;
 	} while (1);

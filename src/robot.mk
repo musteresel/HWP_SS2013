@@ -8,12 +8,14 @@ SOURCES := \
  util/property.c \
  sensor/ir.c \
  sensor/incremental.c \
+ device/motor.c \
  hwplib/IO/ADC/ADC.c \
  communication.c \
  alive.c \
  irsensors.c \
  sensortelemetry.c \
- commander.c
+ commander.c \
+ translationcontrol.c
 
 
 
