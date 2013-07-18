@@ -66,7 +66,7 @@ ATTRIBUTE( constructor, used) static void Motor_ctor(void)
 
 
 //-----------------------------------------------------------------------------
-void Motor_set4(int16_t velocity)
+void Motor_setLeft(int16_t velocity)
 {
 	if (velocity >= 0)
 	{
@@ -83,23 +83,15 @@ void Motor_set4(int16_t velocity)
 
 
 
-void Motor_set5(int16_t velocity)
+void Motor_setRight(int16_t velocity)
 {
 	if (velocity >= 0)
 	{
-		if (velocity > 253)
-		{
-			velocity = 253;
-		}
 		OCR5AL = velocity & 0xFF;
 		OCR5BL = 0x00;
 	}
 	else
 	{
-		if (velocity < -253)
-		{
-			velocity = -253;
-		}
 		OCR5AL = 0x00;
 		OCR5BL = (-velocity) & 0xFF;
 	}

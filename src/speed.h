@@ -4,29 +4,13 @@
 
 
 
-
-typedef struct __WheelSpeed_t
+typedef struct __Translation_t
 {
-	int16_t left;
-	int16_t right;
-} WheelSpeed;
+	int16_t speed;
+	int16_t steering;
+} Translation;
 
 
-typedef struct __ControlParameters_t
-{
-	int8_t p;
-	int8_t i;
-	int8_t d;
-} ControlParameters;
-
-typedef struct __ControlStatus_t
-{
-	int16_t integral;
-	int16_t lastValue;
-} ControlStatus;
-
-extern void Speed_setDesired(WheelSpeed *);
-
-
+extern void Translation_set(Translation *);
 #endif
 

@@ -19,24 +19,12 @@ static void commanderFct(void)
 		size = Communication_readPacket(packetBuffer, 32);
 		if (size)
 		{
-			if (packetBuffer[0] == 24)
+			if (packetBuffer[0] == 2)
 			{
-				current += 50;
+				Translation * t = (Translation *)(&packetBuffer[1]);
+				Translation_set(t);
+				Communication_log(0,"speed: %d, steering: %d", t->speed, t->steering);
 			}
-			else if (packetBuffer[0] == 23)
-			{
-				current -= 50;
-			}
-			else if (packetBuffer[0] == 22)
-			{
-				current = 0;
-				WheelDistance dist = Incremental_getDistance();
-				Communication_log(0,"L: %d R: %d", dist.left, dist.right);	
-			}
-			WheelSpeed speed;
-			speed.left = current;
-			speed.right = current;
-			Speed_setDesired(&speed);
 		}
 		Task_waitCurrent(222);
 	} while (1);
