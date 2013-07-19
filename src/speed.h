@@ -6,11 +6,11 @@
 
 typedef struct __Translation_t
 {
-	int16_t speed;
-	int16_t steering;
+	uint16_t length;
+	int16_t angle;
 } Translation;
 
 
-extern void Translation_set(Translation *);
+extern void Translation_apply(Translation);
 #endif
 

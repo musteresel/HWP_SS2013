@@ -1,63 +1,100 @@
 #include <stdint.h>
-#include "kernel/task.h"
-#include "kernel/pipe.h"
 #include "device/motor.h"
 #include "speed.h"
 
-PIPE_STATIC(translationPipe,10);
 
 
-static void getTranslation(Translation * t)
+#define INNER_ZERO 200
+#define INNER_MIN 135
+#define OUTER_ZERO 45
+#define MAX_LENGTH 200
+#define MOTOR_MAX 255
+#define MOTOR_MIN 180
+#define MOTOR_RANGE (MOTOR_MAX - MOTOR_MIN)
+
+
+void Translation_apply(Translation t)
 {
-	uint8_t * write = (uint8_t*)t;
-	Pipe_startRead(&translationPipe);
-	uint8_t iterator = 0;
-	for (; iterator < sizeof(Translation); iterator++)
-	{
-		Pipe_read(&translationPipe,write);
-		write++;
-	}
-	Pipe_endRead(&translationPipe);
-}
-
-void Translation_set(Translation * t)
-{
-	uint8_t * read = (uint8_t*)t;
-	Pipe_startWrite(&translationPipe);
-	uint8_t iterator = 0;
-	for (; iterator < sizeof(Translation); iterator++)
-	{
-		Pipe_write(&translationPipe,*read);
-		read++;
-	}
-	Pipe_endWrite(&translationPipe);
-}
-
-TASK_STATIC(translator,0,translatorFct,100,1);
-static void translatorFct(void)
-{
-	Translation wanted;
 	int16_t left;
 	int16_t right;
-	do
+	if (t.angle > 270)
 	{
-		getTranslation(&wanted);
-		/*if (wanted.steering >= 0)
-		{
-			left = wanted.speed * wanted.speed + wanted.steering * wanted.steering;
-			right = wanted.speed - wanted.steering;
-		}
-		else
-		{
-			left = wanted.speed - wanted.steering;
-			right = wanted.speed * wanted.speed + wanted.steering * wanted.steering;
-		}*/
-		left = wanted.speed + wanted.steering;
-		right = wanted.speed - wanted.steering;
-		Motor_set4(left);
-		Motor_set5(right);
-	} while (1);
+		left = MOTOR_RANGE;
+	}
+	else if (t.angle > INNER_ZERO)
+	{
+		left = (MOTOR_RANGE *(t.angle - INNER_ZERO)) / (270-INNER_ZERO);
+	}
+	else if (t.angle > INNER_MIN)
+	{
+		left = -MOTOR_RANGE +
+			(MOTOR_RANGE * (t.angle - INNER_MIN)) / (INNER_ZERO - INNER_MIN);
+	}
+	else if (t.angle > 90)
+	{
+		left = -MOTOR_RANGE;
+	}
+	else if (t.angle > OUTER_ZERO)
+	{
+		left = (-(MOTOR_RANGE-10) * (t.angle - OUTER_ZERO)) / (90 - OUTER_ZERO);
+	}
+	else
+	{
+		left = (MOTOR_RANGE * (OUTER_ZERO - t.angle)) / OUTER_ZERO;
+	}
+	t.angle = 180 - t.angle;
+	if (t.angle < 0)
+	{
+		t.angle += 360;
+	}
+	if (t.angle > 270)
+	{
+		right = MOTOR_RANGE;
+	}
+	else if (t.angle > INNER_ZERO)
+	{
+		right = (MOTOR_RANGE *(t.angle - INNER_ZERO)) / (270-INNER_ZERO);
+	}
+	else if (t.angle > INNER_MIN)
+	{
+		right = -MOTOR_RANGE +
+			(MOTOR_RANGE * (t.angle - INNER_MIN)) / (INNER_ZERO - INNER_MIN);
+	}
+	else if (t.angle > 90)
+	{
+		right = -MOTOR_RANGE;
+	}
+	else if (t.angle > OUTER_ZERO)
+	{
+		right = (-(MOTOR_RANGE-10) * (t.angle - OUTER_ZERO)) / (90 - OUTER_ZERO);
+	}
+	else
+	{
+		right = (MOTOR_RANGE * (OUTER_ZERO - t.angle)) / OUTER_ZERO;
+	}
+	if (t.length < MAX_LENGTH)
+	{
+		left = (left * t.length) / MAX_LENGTH;
+		right = (right * t.length) / MAX_LENGTH;
+	}
+	if (left < 0)
+	{
+		left -= MOTOR_MIN;
+	}
+	else if (left > 0)
+	{
+		left += MOTOR_MIN;
+	}
+	if (right < 0)
+	{
+		right -= MOTOR_MIN;
+	}
+	else if (right > 0)
+	{
+		right += MOTOR_MIN;
+	}
+	Motor_setLeft(left);
+	Motor_setRight(right);
 }
-
 
 
