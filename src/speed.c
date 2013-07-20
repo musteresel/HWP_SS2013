@@ -13,6 +13,8 @@
 #define MOTOR_RANGE (MOTOR_MAX - MOTOR_MIN)
 
 
+
+
 void Translation_apply(Translation t)
 {
 	int16_t left;

@@ -15,7 +15,8 @@ SOURCES := \
  irsensors.c \
  sensortelemetry.c \
  commander.c \
- speed.c
+ speed.c \
+ mapping.c
 
 
 
