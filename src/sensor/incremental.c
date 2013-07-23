@@ -163,6 +163,7 @@ ISR(PCINT0_vect)
 
 
 //-----------------------------------------------------------------------------
+#define PI 3.14159265359d
 WheelDistance Incremental_getDistance(void)
 {
 	IncrementalTicks data;
@@ -174,8 +175,8 @@ WheelDistance Incremental_getDistance(void)
 	incrementalTicks.left = incrementalTicks.right = 0;
 	sei();
 	WheelDistance distance;
-	distance.left = (int16_t)(data.left * DIAMETER_MM * 3.14 )/ PULSE_ROT;
-	distance.right = (int16_t)(data.right * DIAMETER_MM * 3.14 )/ PULSE_ROT;
+	distance.left = (data.left * DIAMETER_MM * PI )/ (double) PULSE_ROT;
+	distance.right = (data.right * DIAMETER_MM * PI )/ (double) PULSE_ROT;
 	return distance;
 }
 

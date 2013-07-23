@@ -6,7 +6,7 @@
 #include "communication.h"
 
 #define WIDTH 115
-#define PI 3.14159265359
+#define PI 3.14159265359d
 
 typedef struct __Pose_t
 {
@@ -21,11 +21,11 @@ volatile Pose currentPose;
 
 void updatePose(WheelDistance distance)
 {
-	int16_t sum = distance.left + distance.right;
-	int16_t diff = distance.left - distance.right;
-	double dTheta = (double) diff / (double) WIDTH;
-	int16_t dx = (sum * cos(currentPose.theta));
-	int16_t dy = (sum * sin(currentPose.theta));
+	double sum = distance.left + distance.right;
+	double diff = distance.left - distance.right;
+	double dTheta = diff / WIDTH;
+	int16_t dx = (int16_t)(sum * cos(currentPose.theta));
+	int16_t dy = (int16_t)(sum * sin(currentPose.theta));
 	dx >>= 1;
 	dy >>= 1;
 	dTheta = currentPose.theta + dTheta;
@@ -53,7 +53,6 @@ static void mappingFct(void)
 	currentPose.x = 0;
 	currentPose.y = 0;
 	currentPose.theta = 0;
-	uint8_t i = 0;
 	do
 	{
 		// Lese inc aus
@@ -64,13 +63,6 @@ static void mappingFct(void)
 		// updateWalls();
 		// (TODO)evtl: Korrigiere Pose
 		// Warte 200ms
-		if (i == 10)
-		{
-			Communication_log(0,"x:%d y:%d theta:%f",currentPose.x,currentPose.y,
-					currentPose.theta);
-			i = 0;
-		}
-		i++;
 		Task_waitCurrent(200);
 	} while (1);
 }

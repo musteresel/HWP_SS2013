@@ -10,8 +10,8 @@
  * */
 typedef struct __WheelDistance_t
 {
-	int16_t left;
-	int16_t right;
+	double left;
+	double right;
 } WheelDistance;
 
 
