@@ -80,8 +80,8 @@ TASK_STATIC(mappingSend,4,send,200,1);
 
 struct PosePacket
 {
-	int64_t x;
-	int64_t y;
+	int32_t x;
+	int32_t y;
 	int16_t theta;
 };
 
