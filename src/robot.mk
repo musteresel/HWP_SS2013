@@ -22,7 +22,7 @@ SOURCES := \
 
 robot: robot.hex robot.lss robot.sym
 
-robot.elf: LDFLAGS += -Wl,-Map=robot.map
+robot.elf: LDFLAGS += -Wl,-Map=robot.map -Wl,-u,vfprintf -lprintf_flt -lm
 robot.elf: $(SOURCES:.c=.o)
 
 

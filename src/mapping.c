@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <math.h>
 #include "kernel/task.h"
+#include <avr/interrupt.h>
 #include "sensor/incremental.h"
 #include "communication.h"
 
@@ -11,22 +12,38 @@ typedef struct __Pose_t
 {
 	int16_t x;
 	int16_t y;
-	int16_t theta; // Grad (0 - 360)
+	double theta; // Rad (0 - 2PI)
 } Pose;
 
 
 volatile Pose currentPose;
 
 
-void calculateNewPose(WheelDistance distance)
+void updatePose(WheelDistance distance)
 {
-	currentPose.theta += ((distance.left - distance.right) * 180) / (PI * WIDTH);
 	int16_t sum = distance.left + distance.right;
-	currentPose.x += (sum * sin((double)currentPose.theta / 180 * PI))
-		/ (currentPose.theta << 1);
-	currentPose.y += (sum * (1 - cos((double)currentPose.theta / 180 * PI)))
-		/ (currentPose.theta << 1);
+	int16_t diff = distance.left - distance.right;
+	double dTheta = (double) diff / (double) WIDTH;
+	int16_t dx = (sum * cos(currentPose.theta));
+	int16_t dy = (sum * sin(currentPose.theta));
+	dx >>= 1;
+	dy >>= 1;
+	dTheta = currentPose.theta + dTheta;
+	if (dTheta < 0)
+	{
+		dTheta += 2 * PI;
+	}
+	else if (dTheta > 2 * PI)
+	{
+		dTheta -= 2 * PI;
+	}
+	// TODO wait/lockfree code
+	currentPose.theta = dTheta;
+	currentPose.x += dx;
+	currentPose.y += dy;
+	// TODO wait/lockfree code
 }
+
 
 
 TASK_STATIC(mapping,1,mappingFct,190,1);
@@ -36,22 +53,29 @@ static void mappingFct(void)
 	currentPose.x = 0;
 	currentPose.y = 0;
 	currentPose.theta = 0;
+	uint8_t i = 0;
 	do
 	{
 		// Lese inc aus
 		WheelDistance distance = Incremental_getDistance();
 		// Berechne neue Pose
-		calculateNewPose(distance);
+		updatePose(distance);
 		// Lese ir aus && Berechne Wände
 		// updateWalls();
 		// (TODO)evtl: Korrigiere Pose
-		// Warte 100ms
-		Communication_log(0,"L:%d R:%d",distance.left, distance.right);
-		Task_waitCurrent(500);
+		// Warte 200ms
+		if (i == 10)
+		{
+			Communication_log(0,"x:%d y:%d theta:%f",currentPose.x,currentPose.y,
+					currentPose.theta);
+			i = 0;
+		}
+		i++;
+		Task_waitCurrent(200);
 	} while (1);
 }
 
-TASK_STATIC(mappingSend,4,send,200,0);
+TASK_STATIC(mappingSend,4,send,200,1);
 
 
 struct PosePacket
@@ -67,9 +91,16 @@ static void send(void)
 	do
 	{
 		struct PosePacket current;
+		cli();
 		current.x = currentPose.x;
 		current.y = currentPose.y;
-		current.theta = currentPose.theta;
+		current.theta = (currentPose.theta * 180) / PI;
+		sei();
+		current.theta -= 270;
+		if (current.theta < 0)
+		{
+			current.theta += 360;
+		}
 		Communication_writePacket(2,(uint8_t*)&current,sizeof(struct PosePacket));
 		Task_waitCurrent(1000);
 	} while(1);
