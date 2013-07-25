@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include "sensor/incremental.h"
 #include "communication.h"
+#include "util/w1r1.h"
 
 #define WIDTH 115
 #define PI 3.14159265359d
@@ -16,19 +17,22 @@ typedef struct __Pose_t
 } Pose;
 
 
-volatile Pose currentPose;
+Pose _robotPose;
+W1R1 robotPose;
+
 
 
 void updatePose(WheelDistance distance)
 {
+	Pose current = _robotPose;
 	double sum = distance.left + distance.right;
 	double diff = distance.left - distance.right;
 	double dTheta = diff / WIDTH;
-	int16_t dx = (int16_t)(sum * cos(currentPose.theta));
-	int16_t dy = (int16_t)(sum * sin(currentPose.theta));
+	int16_t dx = (int16_t)(sum * cos(current.theta));
+	int16_t dy = (int16_t)(sum * sin(current.theta));
 	dx >>= 1;
 	dy >>= 1;
-	dTheta = currentPose.theta + dTheta;
+	dTheta = current.theta + dTheta;
 	if (dTheta < 0)
 	{
 		dTheta += 2 * PI;
@@ -37,11 +41,10 @@ void updatePose(WheelDistance distance)
 	{
 		dTheta -= 2 * PI;
 	}
-	// TODO wait/lockfree code
-	currentPose.theta = dTheta;
-	currentPose.x += dx;
-	currentPose.y += dy;
-	// TODO wait/lockfree code
+	current.theta = dTheta;
+	current.x += dx;
+	current.y += dy;
+	W1R1_write(&robotPose,&current);
 }
 
 
@@ -50,9 +53,10 @@ TASK_STATIC(mapping,1,mappingFct,190,1);
 
 static void mappingFct(void)
 {
-	currentPose.x = 0;
-	currentPose.y = 0;
-	currentPose.theta = 0;
+	_robotPose.x = 0;
+	_robotPose.y = 0;
+	_robotPose.theta = 0;
+	W1R1_init(&robotPose, &_robotPose, sizeof(Pose));
 	do
 	{
 		// Lese inc aus
@@ -83,11 +87,11 @@ static void send(void)
 	do
 	{
 		struct PosePacket current;
-		cli();
-		current.x = currentPose.x;
-		current.y = currentPose.y;
-		current.theta = (currentPose.theta * 180) / PI;
-		sei();
+		Pose pose;
+		W1R1_read(&robotPose,&pose);
+		current.x = pose.x;
+		current.y = pose.y;
+		current.theta = (pose.theta * 180) / PI;
 		current.theta -= 270;
 		if (current.theta < 0)
 		{

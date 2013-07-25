@@ -10,7 +10,7 @@
 //-----------------------------------------------------------------------------
 /** Wheel diameter in mm.
  * */
-#define DIAMETER_MM 50
+#define DIAMETER_MM 51
 
 
 

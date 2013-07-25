@@ -6,6 +6,7 @@ SOURCES := \
  kernel/pipe.c \
  util/ringbuffer.c \
  util/property.c \
+ util/w1r1.c \
  sensor/ir.c \
  sensor/incremental.c \
  device/motor.c \
