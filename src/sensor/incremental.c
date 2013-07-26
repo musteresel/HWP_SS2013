@@ -59,9 +59,9 @@ static volatile IncrementalTicks incrementalTicks;
 ATTRIBUTE( constructor, used) void Incremental_ctor(void)
 {
 	// Enable pin change interrupt for PCINT0:7 and PCINT8:15
-	PCICR |= (1 << PCIE0) | (1 << PC1E1);
+	PCICR |= (1 << PCIE0) | (1 << PCIE1);
 	// Enable pc interrupt for num 4,5
-	PCMSK0 |= (1 << PCINT4) | (1 << PCINT5)
+	PCMSK0 |= (1 << PCINT4) | (1 << PCINT5);
 	PCMSK1 |= (1 << PCINT13) | (1 << PCINT14);
 	// Set pins as input
 	DDRB &= ~((1 << PB4) | (1 << PB5));
