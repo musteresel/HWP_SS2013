@@ -17,7 +17,8 @@ SOURCES := \
  sensortelemetry.c \
  commander.c \
  speed.c \
- mapping.c
+ mapping.c \
+ pathtracking.c
 
 
 

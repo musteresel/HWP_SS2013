@@ -8,7 +8,7 @@
 #define INNER_MIN 135
 #define OUTER_ZERO 45
 #define MAX_LENGTH 200
-#define MOTOR_MAX 255
+#define MOTOR_MAX 250
 #define MOTOR_MIN 180
 #define MOTOR_RANGE (MOTOR_MAX - MOTOR_MIN)
 
@@ -19,6 +19,13 @@ void Translation_apply(Translation t)
 {
 	int16_t left;
 	int16_t right;
+	t.angle += 270;
+	if (t.angle > 360)
+	{
+		t.angle -= 360;
+	}
+
+	
 	if (t.angle > 270)
 	{
 		left = MOTOR_RANGE;
@@ -79,6 +86,11 @@ void Translation_apply(Translation t)
 		left = (left * t.length) / MAX_LENGTH;
 		right = (right * t.length) / MAX_LENGTH;
 	}
+	/*if (t.length < 10)
+	{
+		left = 0;
+		right = 0;
+	}*/
 	if (left < 0)
 	{
 		left -= MOTOR_MIN;
@@ -99,4 +111,10 @@ void Translation_apply(Translation t)
 	Motor_setRight(right);
 }
 
+/*
 
+
+
+void Translation_apply(Translation t)
+{
+*/

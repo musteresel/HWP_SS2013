@@ -4,7 +4,7 @@
 
 
 
-TASK_STATIC(alive,5,aliveFct,100,1);
+TASK_STATIC(alive,5,aliveFct,100,0);
 
 
 static void aliveFct(void)

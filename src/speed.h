@@ -6,7 +6,7 @@
 
 typedef struct __Translation_t
 {
-	uint16_t length;
+	int16_t length;
 	int16_t angle;
 } Translation;
 

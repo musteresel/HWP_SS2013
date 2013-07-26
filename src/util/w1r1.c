@@ -78,6 +78,7 @@ void W1R1_read(W1R1 * w1r1, void * destination)
 	uint8_t iterator;
 	do
 	{
+		// TODO
 		w1r1->read = 0xFF;
 		asm volatile (""::: "memory");
 		for (iterator = 0; iterator < w1r1->size; iterator++)

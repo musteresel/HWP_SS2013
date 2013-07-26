@@ -145,7 +145,7 @@ static void transmitterTask(void)
 		// Wait until buffer is free and not in use by uart tx interrupt
 		while (!Ringbuffer_empty(&transmitBuffer))
 		{
-			Task_waitCurrent(7);
+			Task_waitCurrent(40);
 		}
 		// Put first byte into buffer
 		putEscapedByte(checkSum);
@@ -163,6 +163,7 @@ static void transmitterTask(void)
 			{
 				// The message is larger than the buffer. If this happens:
 				// Damn it: You are stupid!
+				break;
 			}
 		} while (iterator != size);
 		// Write final checksum

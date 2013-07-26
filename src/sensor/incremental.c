@@ -58,14 +58,17 @@ static volatile IncrementalTicks incrementalTicks;
  * */
 ATTRIBUTE( constructor, used) void Incremental_ctor(void)
 {
-	// Enable pin change interrupt for PCINT0:7
-	PCICR |= (1 << PCIE0);
-	// Enable pc interrupt for num 4,5,6,7
-	PCMSK0 |= (1 << PCINT4) | (1 << PCINT5) | (1 << PCINT6) | (1 << PCINT7);
+	// Enable pin change interrupt for PCINT0:7 and PCINT8:15
+	PCICR |= (1 << PCIE0) | (1 << PC1E1);
+	// Enable pc interrupt for num 4,5
+	PCMSK0 |= (1 << PCINT4) | (1 << PCINT5)
+	PCMSK1 |= (1 << PCINT13) | (1 << PCINT14);
 	// Set pins as input
-	DDRB &= ~((1 << PB4) | (1 << PB5) | (1 << PB6) | (1 << PB7));
+	DDRB &= ~((1 << PB4) | (1 << PB5));
+	DDRJ &= ~((1 << PJ4) | (1 << PJ5));
 	// Enable pullup resitors
-	PORTB |= (1 << PB4) | (1 << PB5) | (1 << PB6) | (1 << PB7);
+	PORTB |= (1 << PB4) | (1 << PB5);
+	PORTJ |= (1 << PJ4) | (1 << PJ5);
 	// Set history
 	incHistory1 = 0;
 	incHistory2 = 0;
@@ -105,20 +108,18 @@ ATTRIBUTE( constructor, used) void Incremental_ctor(void)
  * B -----|     |-ON--|
  *
  * */
-ISR(PCINT0_vect)
+ISR(PCINT1_vect)
 {
 	// Read state of pins, TODO: use volatile?
-	uint8_t pinstate = PINB;
-	// Isolate AB of both sensors
-	uint8_t incState1 = pinstate & ((1 << PB4) | (1 << PB5));
-	uint8_t incState2 = pinstate & ((1 << PB6) | (1 << PB7));
+	uint8_t pinstate = PINJ;
+	// Isolate AB of sensor
+	uint8_t incState2 = pinstate & ((1 << PJ4) | (1 << PJ5));
 	// Shift so that A and B are two least significant bits
-	incState1 >>= PB4;
-	incState2 >>= PB6;
+	incState2 >>= PJ4;
+	incState2 &= 0x3;
 	// Combine with history
-	uint8_t combined1 = (incHistory1 << 2) | incState1;
 	uint8_t combined2 = (incHistory2 << 2) | incState2;
-	// Update tick information of first sensor
+	// Update tick information of sensor
 	switch (combined2)
 	{
 		case 4:
@@ -136,7 +137,21 @@ ISR(PCINT0_vect)
 		default:
 			break;
 	}
-	// Update tick information of second sensor
+	// Update history
+	incHistory2 = incState2;
+}
+ISR(PCINT0_vect)
+{
+	// Read state of pins, TODO: use volatile?
+	uint8_t pinstate = PINB;
+	// Isolate AB of sensor
+	uint8_t incState1 = pinstate & ((1 << PB4) | (1 << PB5));
+	// Shift so that A and B are two least significant bits
+	incState1 >>= PB4;
+	incState1 &= 0x3;
+	// Combine with history
+	uint8_t combined1 = (incHistory1 << 2) | incState1;
+	// Update tick information of sensor	
 	switch (combined1)
 	{
 		case 4:
@@ -156,7 +171,6 @@ ISR(PCINT0_vect)
 	}
 	// Update history
 	incHistory1 = incState1;
-	incHistory2 = incState2;
 }
 
 
