@@ -19,8 +19,8 @@
  *
  * TODO
  * */
-#define PULSE_ROT (24 * 4)
-
+#define PULSE_ROT_R (24 * 4)
+#define PULSE_ROT_L (24 * 4)
 
 
 
@@ -64,10 +64,10 @@ ATTRIBUTE( constructor, used) void Incremental_ctor(void)
 	PCMSK0 |= (1 << PCINT4) | (1 << PCINT5);
 	PCMSK1 |= (1 << PCINT13) | (1 << PCINT14);
 	// Set pins as input
-	DDRB &= ~((1 << PB4) | (1 << PB5));
+	DDRB &= ~((1 << PB6) | (1 << PB7));
 	DDRJ &= ~((1 << PJ4) | (1 << PJ5));
 	// Enable pullup resitors
-	PORTB |= (1 << PB4) | (1 << PB5);
+	PORTB |= (1 << PB6) | (1 << PB7);
 	PORTJ |= (1 << PJ4) | (1 << PJ5);
 	// Set history
 	incHistory1 = 0;
@@ -126,13 +126,13 @@ ISR(PCINT1_vect)
 		case 2:
 		case 11:
 		case 13:
-			incrementalTicks.left++;
+			incrementalTicks.right++;
 			break;
 		case 7:
 		case 14:
 		case 8:
 		case 1:
-			incrementalTicks.left--;
+			incrementalTicks.right--;
 			break;
 		default:
 			break;
@@ -145,9 +145,9 @@ ISR(PCINT0_vect)
 	// Read state of pins, TODO: use volatile?
 	uint8_t pinstate = PINB;
 	// Isolate AB of sensor
-	uint8_t incState1 = pinstate & ((1 << PB4) | (1 << PB5));
+	uint8_t incState1 = pinstate & ((1 << PB6) | (1 << PB7));
 	// Shift so that A and B are two least significant bits
-	incState1 >>= PB4;
+	incState1 >>= PB6;
 	incState1 &= 0x3;
 	// Combine with history
 	uint8_t combined1 = (incHistory1 << 2) | incState1;
@@ -158,13 +158,13 @@ ISR(PCINT0_vect)
 		case 2:
 		case 11:
 		case 13:
-			incrementalTicks.right--;
+			incrementalTicks.left++;
 			break;
 		case 7:
 		case 14:
 		case 8:
 		case 1:
-			incrementalTicks.right++;
+			incrementalTicks.left--;
 			break;
 		default:
 			break;
@@ -189,8 +189,8 @@ WheelDistance Incremental_getDistance(void)
 	incrementalTicks.left = incrementalTicks.right = 0;
 	sei();
 	WheelDistance distance;
-	distance.left = (data.left * DIAMETER_MM * PI )/ (double) PULSE_ROT;
-	distance.right = (data.right * DIAMETER_MM * PI )/ (double) PULSE_ROT;
+	distance.left = (data.left * DIAMETER_MM * PI )/ (double) PULSE_ROT_L;
+	distance.right = (data.right * DIAMETER_MM * PI )/ (double) PULSE_ROT_R;
 	return distance;
 }
 

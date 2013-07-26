@@ -12,6 +12,7 @@ TASK_STATIC(commander,4,commanderFct,200,1);
 static uint8_t packetBuffer[32];
 
 static int16_t current;
+#include "sensor/incremental.h"
 
 static void commanderFct(void)
 {
@@ -22,6 +23,11 @@ static void commanderFct(void)
 		size = Communication_readPacket(packetBuffer, 32);
 		if (size)
 		{
+			if (packetBuffer[0] == 24)
+			{
+				WheelDistance d = Incremental_getDistance();
+				Communication_log(0,"L: %f R: %f",d.left,d.right);
+			}
 			if (packetBuffer[0] == 22)
 			{
 				int32_t * target = (int32_t *)&(packetBuffer[1]);
