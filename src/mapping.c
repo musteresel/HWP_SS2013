@@ -7,9 +7,13 @@
 #include "util/w1r1.h"
 #include "mapping.h"
 
-#define WIDTH 113
+
+
+//-----------------------------------------------------------------------------
+#define WIDTH 108
 #define LENGTH_TO_MID 50
 #define PI 3.14159265359d
+
 
 
 Pose _robotPose;
