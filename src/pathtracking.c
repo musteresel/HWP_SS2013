@@ -12,8 +12,8 @@
 
 
 
-#define MAX_WAYPOINTS 8
-#define THRESHOLD 50
+#define MAX_WAYPOINTS 4
+#define THRESHOLD 30
 
 uint8_t __waypointbuffer[MAX_WAYPOINTS * sizeof(Waypoint)];
 Ringbuffer waypointBuffer;
@@ -119,7 +119,7 @@ static void pathFct(void)
 			 translation.angle = (aimAngle * 180) / PI;
 			 //Communication_log(0,"Aim: %d",translation.angle);
 			 Translation_apply(translation);
-			 Task_waitCurrent(750);
+			 Task_waitCurrent(500);
 		 } while (1);
 	} while (1);
 }
