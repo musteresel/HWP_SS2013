@@ -40,8 +40,6 @@ void updatePose(WheelDistance distance)
 	double cosTheta = cos(current.theta);
   double dx = (sum * cosTheta) - (LENGTH_TO_MID * sinTheta)*dTheta;
 	double dy = (sum * sinTheta) + (LENGTH_TO_MID * cosTheta)*dTheta;
-	/*dx >>= 1;
-	dy >>= 1;*/
 	current.x += dx;
 	current.y += dy;
 	W1R1_write(&robotPose,&current);
@@ -56,6 +54,7 @@ static void mappingFct(void)
 	_robotPose.x = 0;
 	_robotPose.y = 0;
 	_robotPose.theta = 0;
+	uint8_t mapDelay = 0;
 	W1R1_init(&robotPose, &_robotPose, sizeof(Pose));
 	do
 	{
@@ -64,8 +63,12 @@ static void mappingFct(void)
 		// Berechne neue Pose
 		updatePose(distance);
 		// Lese ir aus && Berechne Wände
-		// updateWalls();
-		// (TODO)evtl: Korrigiere Pose
+		mapDelay++;
+		if (mapDelay == 4)
+		{
+			// updateWalls();
+			// (TODO)evtl: Korrigiere Pose
+		}
 		// Warte 200ms
 		Task_waitCurrent(200);
 	} while (1);
