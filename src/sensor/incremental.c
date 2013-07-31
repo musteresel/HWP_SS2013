@@ -58,6 +58,7 @@ static volatile IncrementalTicks incrementalTicks;
  * */
 ATTRIBUTE( constructor, used) void Incremental_ctor(void)
 {
+	/*
 	// Enable pin change interrupt for PCINT0:7 and PCINT8:15
 	PCICR |= (1 << PCIE0) | (1 << PCIE1);
 	// Enable pc interrupt for num 4,5
@@ -68,11 +69,22 @@ ATTRIBUTE( constructor, used) void Incremental_ctor(void)
 	DDRJ &= ~((1 << PJ4) | (1 << PJ5));
 	// Enable pullup resitors
 	PORTB |= (1 << PB6) | (1 << PB7);
-	PORTJ |= (1 << PJ4) | (1 << PJ5);
+	PORTJ |= (1 << PJ4) | (1 << PJ5);*/
 	// Set history
 	incHistory1 = 0;
 	incHistory2 = 0;
+
+	OCR2A = 125;
+	TIMSK2 |= (1 << OCIE2A);
+	TCCR2B = 0;
+	TCNT2 = 0;
+	TCCR2A = 0;
+	TCCR2B = (1 << WGM22) | (1 << CS21) | (1 << CS20);
+
+
 }
+
+
 
 
 
@@ -193,4 +205,89 @@ WheelDistance Incremental_getDistance(void)
 	distance.right = (data.right * DIAMETER_MM * PI )/ (double) PULSE_ROT_R;
 	return distance;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static uint8_t history1;
+static uint8_t history2;
+
+/*
+ * AB --> AB CW CCW
+ * 00     10 2    8
+ * 10     11 11  14
+ * 11     01 13   7
+ * 01     00 4    1
+*/
+
+static const int8_t tab[16] =
+{
+	+0,
+	-1,
+	+1,
+	+0,
+	+1,
+	+0,
+	+0,
+	-1,
+	-1,
+	+0,
+	+0,
+	+1,
+	+0,
+	+1,
+	-1,
+	+0
+};
+
+ISR(TIMER2_COMPA_vect)
+{
+/*	static const int8_t table[4][4] = {
+		{0,1,-1,0},
+		{-1,0,0,1},
+		{1,0,0,-1},
+		{0,-1,1,0}};*/
+	register uint8_t pinstate = PINB;
+	register uint8_t state1 = pinstate & ((1 << PB4) | (1 << PB5));
+	register uint8_t state2 = pinstate & ((1 << PB6) | (1 << PB7));
+	state1 >>= PB4;
+	state2 >>= PB6;
+	//
+/*	history1 <<= 2;
+	history2 <<= 2;
+	history1 |= state1;
+	history2 |= state2;
+
+//	history1 = ((history1 & 0x3) << 2) | state1;
+
+	incrementalTicks.left += tab[history1 & 0xF];
+	incrementalTicks.right += tab[history2 & 0xF];
+*/
+
+
+	incrementalTicks.left += tab[(history1 << 2) | state1];
+	incrementalTicks.right += tab[(history2 << 2) | state2];
+	history1 = state1;
+	history2 = state2;
+
+	/*
+	incrementalTicks.left += table[history1][state1];
+	incrementalTicks.right += table[history2][state2];
+	history1 = state1;
+	history2 = state2;*/
+}
+
+
 
