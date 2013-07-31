@@ -65,6 +65,10 @@ static void commanderFct(void)
 				Pathtracking_addWaypoint(&wp3);
 				Pathtracking_addWaypoint(&wp4);
 			}
+			if (packetBuffer[0] == 25)
+			{
+				Semaphore_signal(&waypointFlag);
+			}
 		}
 		Task_waitCurrent(222);
 	} while (1);
