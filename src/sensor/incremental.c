@@ -71,9 +71,6 @@ ATTRIBUTE( constructor, used) void Incremental_ctor(void)
 
 
 
-
-
-
 //-----------------------------------------------------------------------------
 #define PI 3.14159265359d
 WheelDistance Incremental_getDistance(void)
@@ -91,7 +88,6 @@ WheelDistance Incremental_getDistance(void)
 	distance.right = (data.right * DIAMETER_MM * PI )/ (double) PULSE_ROT_R;
 	return distance;
 }
-
 
 
 
@@ -127,7 +123,6 @@ static const int8_t tab[16] =
 
 ISR(TIMER2_COMPA_vect)
 {
-//  const int8_t table[4][4]={{0,1,-1,0},{-1,0,0,1},{1,0,0,-1},{0,-1,1,0}};
 	register uint8_t pinB = PINB;
 	register uint8_t pinJ = PINJ;
 	register uint8_t state1 = pinB & ((1 << PB6) | (1 << PB7));
@@ -136,11 +131,6 @@ ISR(TIMER2_COMPA_vect)
 	state1 &= 0x3;
 	state2 >>= PJ4;
 	state2 &= 0x3;
-
-	/*incrementalTicks.left += table[history1][state1];
-	incrementalTicks.right += table[history2][state2];
-*/
-	
 	incrementalTicks.left += tab[(history1 << 2) | state1];
 	incrementalTicks.right += tab[(history2 << 2) | state2];
 	history1 = state1;

@@ -4,7 +4,7 @@
 
 
 
-TASK_STATIC(alive,5,aliveFct,100,0);
+TASK_STATIC(alive,5,aliveFct,100,1);
 
 
 static void aliveFct(void)
@@ -13,7 +13,7 @@ static void aliveFct(void)
 	Task_waitCurrent(113);
 	do
 	{
-		Task_waitCurrent(5000);
+		Task_waitCurrent(1000);
 		Communication_log(COMMUNICATION_FINE, "Alive: %u", aliveCount);
 		aliveCount++;
 	} while (1);

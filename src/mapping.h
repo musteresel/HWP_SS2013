@@ -3,6 +3,12 @@
 #include <stdint.h>
 #include "util/w1r1.h"
 
+
+// Karte
+#define MAP_SIZE 64		// Kantenlaenge
+#define CELL_SIZE 200	// Kantenlaenge in mm
+
+
 typedef struct __Pose_t
 {
 	double x;
@@ -10,8 +16,16 @@ typedef struct __Pose_t
 	double theta; // Rad (0 - 2PI)
 } Pose;
 
+typedef struct __Cell_t
+{
+	uint8_t directions;
+	int8_t pot;
+} Cell;
+
+
 
 extern W1R1 robotPose;
+
 
 #endif
 

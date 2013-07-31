@@ -15,6 +15,9 @@
 #define MAX_WAYPOINTS 4
 #define THRESHOLD 30
 
+//uint8_t wayPointFlag = 1;	// Damit der Roboter ueberhaupt losfaehrt
+SEMAPHORE_STATIC(waypointFlag,0);
+
 uint8_t __waypointbuffer[MAX_WAYPOINTS * sizeof(Waypoint)];
 Ringbuffer waypointBuffer;
 SEMAPHORE_STATIC(fillCount, 0);
@@ -95,6 +98,8 @@ static void pathFct(void)
 			 {
 				 translation.length = 0;
 				 Translation_apply(translation);
+				 //wayPointFlag++;
+				 Semaphore_signal(&waypointFlag);
 				 break;
 			 }
 			 else if (sum > 1000)
