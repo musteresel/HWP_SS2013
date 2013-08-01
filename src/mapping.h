@@ -5,8 +5,8 @@
 
 
 // Karte
-#define MAP_SIZE 64		// Kantenlaenge
-#define CELL_SIZE 200	// Kantenlaenge in mm
+#define MAP_SIZE 7		// Kantenlaenge
+#define CELL_SIZE 250	// Kantenlaenge in mm
 
 
 typedef struct __Pose_t

@@ -8,7 +8,7 @@
 #include "mapping.h"
 #include "pathtracking.h"
 #include "sensor/ir.h"
-
+#include "util/property.h"
 
 
 
@@ -66,6 +66,14 @@ TASK_STATIC(mapping,1,mappingFct,190,1);
 // Gibt eine der oben definierten Richtungen zurueck
 static uint8_t getDirection(double theta)
 {
+	if (theta < 0)
+	{
+		theta += 2 * PI;
+	}
+	else if (theta > 2 * PI)
+	{
+		theta -= 2 * PI;
+	}
 	return (((uint8_t)(theta + 22.5 * PI / 180.0) / (uint8_t)(45.0 * PI / 180.0)) & 7);
 }
 
@@ -123,6 +131,9 @@ static void updateCellRow(dist_t length, double theta)
 
 	uint8_t dir = getDirection(theta);
 
+	Communication_log(0,"DIR = %d THETA=%f",dir,theta);
+
+
 	Cell start = map[x][y];
 
 	while (length > CELL_SIZE)
@@ -147,12 +158,12 @@ static void updateCellRow(dist_t length, double theta)
 // Aktualisiert die Richtungsinformationen der Zellen der Karte abhaengig von der aktuellen Pose und den Infrarotsensoren
 static void updateCells(void)
 {
-	dist_t left, right, front;
-	left = Ir_read(IR_LEFT);
-	right = Ir_read(IR_RIGHT);
-	front = Ir_read(IR_FRONT);
-	updateCellRow(left, _robotPose.theta - PI);		// Links
-	updateCellRow(right, _robotPose.theta + PI);		// Rechts
+	uint16_t left, right, front;
+	left = 20 * Ir_read(IR_LEFT);
+	right = 20 * Ir_read(IR_RIGHT);
+	front = 20 * Ir_read(IR_FRONT);
+	updateCellRow(left, _robotPose.theta - PI/2);		// Links
+	updateCellRow(right, _robotPose.theta + PI/2);		// Rechts
 	updateCellRow(front, _robotPose.theta);			// Geradeaus
 }
 
@@ -198,6 +209,7 @@ static void mappingFct(void)
 		mapDelay++;
 		if (mapDelay == 4)
 		{
+			mapDelay = 0;
 			updateCells();
 			// (TODO)evtl: Korrigiere Pose
 		}
@@ -242,7 +254,7 @@ static void send(void)
 
 
 // Stack und Prioritaet sind ausgedacht, muss vielleicht geaendert werden
-TASK_STATIC(KI,3,think,50,0);
+TASK_STATIC(KI,3,think,200,1);
 
 static void think(void)
 {
@@ -252,10 +264,13 @@ static void think(void)
 
 	do
 	{
+		Task_waitCurrent(2000);
 		Semaphore_wait(&waypointFlag);
+		Pose pose;
+		Property_copy(&pose,&_robotPose,sizeof(Pose));
 		// Convert position to map position
-		x = (_robotPose.x + MAP_SIZE/2*CELL_SIZE) / CELL_SIZE;
-		y = (_robotPose.y + MAP_SIZE/2*CELL_SIZE) / CELL_SIZE;
+		x = (pose.x + MAP_SIZE/2*CELL_SIZE) / CELL_SIZE;
+		y = (pose.y + MAP_SIZE/2*CELL_SIZE) / CELL_SIZE;
 		// Get cell at current map position
 		Cell currentCell = map[x][y];
 		// Find best neighbour cell
@@ -300,9 +315,11 @@ static void think(void)
 		}
 		else
 		{
-			wp.x = xSend*CELL_SIZE + CELL_SIZE/2 - MAP_SIZE/2*CELL_SIZE;
-			wp.y = ySend*CELL_SIZE + CELL_SIZE/2 - MAP_SIZE/2*CELL_SIZE;
+			wp.x = xSend*CELL_SIZE - MAP_SIZE/2*CELL_SIZE;
+			wp.y = ySend*CELL_SIZE - MAP_SIZE/2*CELL_SIZE;
 		}
+		Communication_log(0,"D=%d |(%d|%d) --> (%d|%d)",map[2][2].directions,
+				x,y,xSend,ySend);
 		if (bestPot < 127)
 		{
 			map[xSend][ySend].pot++;
