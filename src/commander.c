@@ -5,6 +5,7 @@
 #include "speed.h"
 #include "sensor/incremental.h"
 #include "obstacleavoidance.h"
+#include "sensor/ir.h"
 
 
 TASK_STATIC(commander,4,commanderFct,200,1);
@@ -58,6 +59,14 @@ static void commanderFct(void)
 				ObstacleAvoidance_addWaypoint(&wp2);
 				ObstacleAvoidance_addWaypoint(&wp3);
 				ObstacleAvoidance_addWaypoint(&wp4);
+			}
+			if (packetBuffer[0] == 26)
+			{
+				dist_t front, left, right;
+				front = Ir_read(IR_FRONT);
+				left = Ir_read(IR_LEFT);
+				right = Ir_read(IR_RIGHT);
+				Communication_log(0,"F: %d L: %d R: %d", front, left, right);
 			}
 		}
 		Task_waitCurrent(222);
