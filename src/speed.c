@@ -4,16 +4,22 @@
 
 
 
-#define INNER_ZERO 230
-#define INNER_MIN 135
-#define OUTER_ZERO 89
-#define MAX_LENGTH 200
-#define MOTOR_MAX 250
-#define MOTOR_MIN 180
+#define MAX_LENGTH 30
+#define MOTOR_MAX 250.0
+#define MOTOR_MIN 180.0
 #define MOTOR_RANGE (MOTOR_MAX - MOTOR_MIN)
 
 
+#define ROT_MIN 1.0
+#define ROT_MAX 20.0
+#define ROT_START 30.0
 
+#define TRANS_MIN 0.0
+#define TRANS_MAX MOTOR_RANGE
+
+
+#define TRANS_SLOPE ((TRANS_MIN - TRANS_MAX)/(ROT_START))
+#define ROT_SLOPE ((ROT_MAX - ROT_MIN)/(180 - ROT_START))
 
 void Translation_apply(Translation t)
 {
@@ -25,72 +31,50 @@ void Translation_apply(Translation t)
 		t.angle -= 360;
 	}
 
-	
-	if (t.angle > 270)
+
+	if (
+			t.angle > (270 - ROT_START) &&
+			t.angle < (270 + ROT_START))
 	{
-		left = MOTOR_RANGE;
-	}
-	else if (t.angle > INNER_ZERO)
-	{
-		left = (MOTOR_RANGE *(t.angle - INNER_ZERO)) / (270-INNER_ZERO);
-	}
-	else if (t.angle > INNER_MIN)
-	{
-		left = -MOTOR_RANGE +
-			(MOTOR_RANGE * (t.angle - INNER_MIN)) / (INNER_ZERO - INNER_MIN);
-	}
-	else if (t.angle > 90)
-	{
-		left = -MOTOR_RANGE;
-	}
-	else if (t.angle > OUTER_ZERO)
-	{
-		left = (-(MOTOR_RANGE-10) * (t.angle - OUTER_ZERO)) / (90 - OUTER_ZERO);
-	}
-	else
-	{
-		left = (MOTOR_RANGE * (OUTER_ZERO - t.angle)) / OUTER_ZERO;
-	}
-	t.angle = 180 - t.angle;
-	if (t.angle < 0)
-	{
-		t.angle += 360;
-	}
-	if (t.angle > 270)
-	{
-		right = MOTOR_RANGE;
-	}
-	else if (t.angle > INNER_ZERO)
-	{
-		right = (MOTOR_RANGE *(t.angle - INNER_ZERO)) / (270-INNER_ZERO);
-	}
-	else if (t.angle > INNER_MIN)
-	{
-		right = -MOTOR_RANGE +
-			(MOTOR_RANGE * (t.angle - INNER_MIN)) / (INNER_ZERO - INNER_MIN);
-	}
-	else if (t.angle > 90)
-	{
-		right = -MOTOR_RANGE;
-	}
-	else if (t.angle > OUTER_ZERO)
-	{
-		right = (-(MOTOR_RANGE-10) * (t.angle - OUTER_ZERO)) / (90 - OUTER_ZERO);
+		if (t.angle < 270)
+		{
+			// left
+			left = (270 - t.angle) * TRANS_SLOPE + TRANS_MAX;
+			right = TRANS_MAX;
+		}
+		else
+		{
+			// right
+			left = TRANS_MAX;
+			right = (t.angle - 270) * TRANS_SLOPE + TRANS_MAX;
+		}
+		if (t.length < MAX_LENGTH)
+		{
+			left = (left * t.length) / MAX_LENGTH;
+			right = (right * t.length) / MAX_LENGTH;
+		}
 	}
 	else
 	{
-		right = (MOTOR_RANGE * (OUTER_ZERO - t.angle)) / OUTER_ZERO;
+		int16_t aim = t.angle - 270;
+		if (aim < 0)
+		{
+			aim += 360;
+		}
+		if (aim > 180)
+		{
+			int16_t val = (360 - aim) * ROT_SLOPE + ROT_MIN - ROT_START * ROT_SLOPE;
+			left = -val;
+			right = val;
+		}
+		else
+		{
+			int16_t val = (aim) * ROT_SLOPE + ROT_MIN - ROT_START * ROT_SLOPE;
+			left = val;
+			right = -val;
+		}
 	}
-	if (t.length < MAX_LENGTH)
-	{
-		left = (left * t.length) / MAX_LENGTH;
-		right = (right * t.length) / MAX_LENGTH;
-	}
-	/*if (t.length < 10)
-	{
-		left = 0;
-		right = 0;
-	}*/
+	// Scale to usable motor interval
 	if (left < 0)
 	{
 		left -= MOTOR_MIN;
@@ -107,14 +91,8 @@ void Translation_apply(Translation t)
 	{
 		right += MOTOR_MIN;
 	}
+	// Apply
 	Motor_setLeft(left);
 	Motor_setRight(right);
 }
 
-/*
-
-
-
-void Translation_apply(Translation t)
-{
-*/
