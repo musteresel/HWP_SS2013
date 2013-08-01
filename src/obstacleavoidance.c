@@ -74,13 +74,33 @@ static void avoid(void)
 			Onewriter_read(&robotPose,&position);
 			double dx = waypoint.x - position.x;
 			double dy = waypoint.y - position.y;
-			double distanceToWaypoint = sqrt(dx * dx + dy * dy);
 			double aimAngle = atan2(dy,dx);
 			if (aimAngle < 0)
 			{
 				aimAngle += 2 * M_PI;
 			}
 			double deltaAlpha = aimAngle - position.theta;
+			// Read ir sensor
+			uint16_t irDistance = Ir_read(IR_FRONT) * 5;
+			//Communication_log(0,"FRONT DISTANCE: %d",irDistance);
+			if (irDistance < LIMIT)
+			{
+				double newTheta = aimAngle + TURN_ANGLE;
+				immediateWaypoint.x = position.x + STEP_ASIDE * cos(newTheta);
+				immediateWaypoint.y = position.y + STEP_ASIDE * sin(newTheta);
+				Pathtracking_addWaypoint(&immediateWaypoint);
+				dx = waypoint.x - immediateWaypoint.x;
+				position.x = immediateWaypoint.x;
+				dy = waypoint.y - immediateWaypoint.y;
+				position.y = immediateWaypoint.y;
+				aimAngle = atan2(dy,dx);
+				if (aimAngle < 0)
+				{
+					aimAngle += 2 * M_PI;
+				}
+				deltaAlpha = aimAngle - newTheta;
+			}
+			double distanceToWaypoint = sqrt(dx * dx + dy * dy);
 			if (deltaAlpha < 0)
 			{
 				deltaAlpha += 2 * M_PI;
@@ -89,25 +109,14 @@ static void avoid(void)
 			{
 				deltaAlpha = 2 * M_PI - deltaAlpha;
 			}
-			// Read ir sensor
-			uint16_t irDistance = Ir_read(IR_FRONT) * 5;
-			//Communication_log(0,"FRONT DISTANCE: %d",irDistance);
-			if (irDistance < LIMIT)
+			uint8_t distanceToNext = 50 + ((1.0 - deltaAlpha/M_PI) * (LIMIT/3.0 - 50.0));
+			if (distanceToWaypoint < distanceToNext)
 			{
-				immediateWaypoint.x = position.x + STEP_ASIDE * cos(aimAngle + TURN_ANGLE);
-				immediateWaypoint.y = position.y + STEP_ASIDE * sin(aimAngle + TURN_ANGLE);
+				distanceToNext = distanceToWaypoint;
+				reachedWaypoint = 1;
 			}
-			else
-			{
-				uint8_t distanceToNext = 50 + ((1.0 - deltaAlpha/M_PI) * (LIMIT/3.0 - 50.0));
-				if (distanceToWaypoint < distanceToNext)
-				{
-					distanceToNext = distanceToWaypoint;
-					reachedWaypoint = 1;
-				}
-				immediateWaypoint.x = position.x + distanceToNext * cos(aimAngle);
-				immediateWaypoint.y = position.y + distanceToNext * sin(aimAngle);
-			}
+			immediateWaypoint.x = position.x + distanceToNext * cos(aimAngle);
+			immediateWaypoint.y = position.y + distanceToNext * sin(aimAngle);
 			Pathtracking_addWaypoint(&immediateWaypoint);
 		} while (reachedWaypoint == 0);	
 	} while (1);
