@@ -88,7 +88,7 @@ static void pathFct(void)
 			 translation.angle = (aimAngle * 180) / PI;
 			 //Communication_log(0,"Aim: %d",translation.angle);
 			 Translation_apply(translation);
-			 Task_waitCurrent(500);
+			 Task_waitCurrent(300);
 		 } while (1);
 		 Semaphore_signal(&atWaypoint);
 	} while (1);

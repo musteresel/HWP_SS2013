@@ -9,7 +9,7 @@
 
 
 #define LIMIT 300
-#define STEP_ASIDE 250
+#define STEP_ASIDE 350
 #define TURN_ANGLE (M_PI/2)
 
 
@@ -90,7 +90,8 @@ static void avoid(void)
 				deltaAlpha = 2 * M_PI - deltaAlpha;
 			}
 			// Read ir sensor
-			uint16_t irDistance = Ir_read(IR_FRONT) * 20;
+			uint16_t irDistance = Ir_read(IR_FRONT) * 5;
+			//Communication_log(0,"FRONT DISTANCE: %d",irDistance);
 			if (irDistance < LIMIT)
 			{
 				immediateWaypoint.x = position.x + STEP_ASIDE * cos(aimAngle + TURN_ANGLE);
@@ -98,7 +99,7 @@ static void avoid(void)
 			}
 			else
 			{
-				uint8_t distanceToNext = 50 + (1 - deltaAlpha/M_PI) * (LIMIT/3 - 50);
+				uint8_t distanceToNext = 50 + ((1.0 - deltaAlpha/M_PI) * (LIMIT/3.0 - 50.0));
 				if (distanceToWaypoint < distanceToNext)
 				{
 					distanceToNext = distanceToWaypoint;

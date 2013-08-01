@@ -69,8 +69,8 @@ static void mappingFct(void)
 			// updateWalls();
 			// (TODO)evtl: Korrigiere Pose
 		}
-		// Warte 200ms
-		Task_waitCurrent(200);
+		// Warte 50ms
+		Task_waitCurrent(50);
 	} while (1);
 }
 
@@ -101,7 +101,7 @@ static void send(void)
 			current.theta += 360;
 		}
 		Communication_writePacket(2,(uint8_t*)&current,sizeof(struct PosePacket));
-		Task_waitCurrent(2000);
+		Task_waitCurrent(4000);
 	} while(1);
 }
 

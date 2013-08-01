@@ -4,9 +4,9 @@
 
 
 
-#define INNER_ZERO 200
+#define INNER_ZERO 230
 #define INNER_MIN 135
-#define OUTER_ZERO 45
+#define OUTER_ZERO 89
 #define MAX_LENGTH 200
 #define MOTOR_MAX 250
 #define MOTOR_MIN 180
@@ -25,39 +25,7 @@ void Translation_apply(Translation t)
 		t.angle -= 360;
 	}
 
-
-	if (t.angle > 260 && t.angle < 280)
-	{
-		left = MOTOR_RANGE;
-		right = MOTOR_RANGE;
-		if (t.length < MAX_LENGTH)
-		{
-			left = (left * t.length) / MAX_LENGTH;
-			right = (right * t.length) / MAX_LENGTH;
-		}
-	}
-	else
-	{
-		int16_t aim = t.angle - 270;
-		if (aim < 0)
-		{
-			aim += 360;
-		}
-		if (aim > 180)
-		{
-			int16_t val = (10 - ((aim - 180) * (10-1))/180);
-			left = -val;
-			right = val;
-		}
-		else
-		{
-			int16_t val = (1 + ((aim) * (10-1))/180);
-			left = val;
-			right = -val;
-		}
-	}
-
-/*	
+	
 	if (t.angle > 270)
 	{
 		left = MOTOR_RANGE;
@@ -113,8 +81,11 @@ void Translation_apply(Translation t)
 	{
 		right = (MOTOR_RANGE * (OUTER_ZERO - t.angle)) / OUTER_ZERO;
 	}
-	*/
-	
+	if (t.length < MAX_LENGTH)
+	{
+		left = (left * t.length) / MAX_LENGTH;
+		right = (right * t.length) / MAX_LENGTH;
+	}
 	/*if (t.length < 10)
 	{
 		left = 0;
