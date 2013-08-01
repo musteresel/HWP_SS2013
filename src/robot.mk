@@ -6,7 +6,7 @@ SOURCES := \
  kernel/pipe.c \
  util/ringbuffer.c \
  util/property.c \
- util/w1r1.c \
+ util/onewriter.c \
  sensor/ir.c \
  sensor/incremental.c \
  device/motor.c \
@@ -18,7 +18,8 @@ SOURCES := \
  commander.c \
  speed.c \
  mapping.c \
- pathtracking.c
+ pathtracking.c \
+ obstacleavoidance.c
 
 
 

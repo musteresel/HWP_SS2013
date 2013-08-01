@@ -4,7 +4,7 @@
 #include <avr/interrupt.h>
 #include "sensor/incremental.h"
 #include "communication.h"
-#include "util/w1r1.h"
+#include "util/onewriter.h"
 #include "mapping.h"
 
 
@@ -17,7 +17,7 @@
 
 
 Pose _robotPose;
-W1R1 robotPose;
+Onewriter robotPose;
 
 
 
@@ -42,7 +42,7 @@ void updatePose(WheelDistance distance)
 	double dy = (sum * sinTheta) + (LENGTH_TO_MID * cosTheta)*dTheta;
 	current.x += dx;
 	current.y += dy;
-	W1R1_write(&robotPose,&current);
+	Onewriter_write(&robotPose,&current);
 }
 
 
@@ -55,7 +55,7 @@ static void mappingFct(void)
 	_robotPose.y = 0;
 	_robotPose.theta = 0;
 	uint8_t mapDelay = 0;
-	W1R1_init(&robotPose, &_robotPose, sizeof(Pose));
+	Onewriter_init(&robotPose, &_robotPose, sizeof(Pose));
 	do
 	{
 		// Lese inc aus
@@ -91,7 +91,7 @@ static void send(void)
 	{
 		struct PosePacket current;
 		Pose pose;
-		W1R1_read(&robotPose,&pose);
+		Onewriter_read(&robotPose,&pose);
 		current.x = pose.x;
 		current.y = pose.y;
 		current.theta = (pose.theta * 180) / PI;

@@ -1,9 +1,7 @@
 #include <stdint.h>
 #include "kernel/task.h"
 #include "kernel/semaphore.h"
-#include "util/attribute.h"
-#include "util/ringbuffer.h"
-#include "util/w1r1.h"
+#include "util/onewriter.h"
 #include <math.h>
 #include "mapping.h"
 #include "speed.h"
@@ -12,48 +10,19 @@
 
 
 
-#define MAX_WAYPOINTS 4
 #define THRESHOLD 30
 
-uint8_t __waypointbuffer[MAX_WAYPOINTS * sizeof(Waypoint)];
-Ringbuffer waypointBuffer;
-SEMAPHORE_STATIC(fillCount, 0);
-SEMAPHORE_STATIC(emptyCount,MAX_WAYPOINTS);
-ATTRIBUTE( constructor, used ) static void pathtracking_ctor(void)
-{
-	Ringbuffer_init(&waypointBuffer,__waypointbuffer,MAX_WAYPOINTS * sizeof(Waypoint));
-}
+SEMAPHORE_STATIC(waypointAvailable,0);
+SEMAPHORE_STATIC(atWaypoint,0);
 
-
-
+static Waypoint waypoint;
 
 void Pathtracking_addWaypoint(Waypoint * wp)
 {
-	Semaphore_wait(&emptyCount);
-	uint8_t * wp_pt = (uint8_t *) wp;
-	uint8_t iterator;
-	for (iterator = 0; iterator < sizeof(Waypoint); iterator++)
-	{
-		Ringbuffer_put(&waypointBuffer, *wp_pt);
-		wp_pt++;
-	}
-	Semaphore_signal(&fillCount);
+	waypoint = *wp;
+	Semaphore_signal(&waypointAvailable);
+	Semaphore_wait(&atWaypoint);
 }
-
-static void getWaypoint(Waypoint * wp)
-{
-	Semaphore_wait(&fillCount);
-	uint8_t * wp_pt = (uint8_t *) wp;
-	uint8_t iterator;
-	for (iterator = 0; iterator < sizeof(Waypoint); iterator++)
-	{
-		*wp_pt = Ringbuffer_get(&waypointBuffer);
-		wp_pt++;
-	}
-	Semaphore_signal(&emptyCount);
-}
-
-
 
 
 TASK_STATIC(path,3,pathFct,200,1);
@@ -61,15 +30,15 @@ TASK_STATIC(path,3,pathFct,200,1);
 
 static void pathFct(void)
 {
-	Waypoint waypoint;
 	Pose pose;
 	Translation translation;
 	do
 	{
-		 getWaypoint(&waypoint);
+		 //getWaypoint(&waypoint);
+		 Semaphore_wait(&waypointAvailable);
 		 do
 		 {
-			 W1R1_read(&robotPose,&pose);
+			 Onewriter_read(&robotPose,&pose);
 			 // Vektor berechnen
 			 double dx = waypoint.x - pose.x;
 			 double dy = waypoint.y - pose.y;
@@ -121,6 +90,7 @@ static void pathFct(void)
 			 Translation_apply(translation);
 			 Task_waitCurrent(500);
 		 } while (1);
+		 Semaphore_signal(&atWaypoint);
 	} while (1);
 }
 

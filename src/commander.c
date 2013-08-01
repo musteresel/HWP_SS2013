@@ -4,7 +4,7 @@
 #include "communication.h"
 #include "speed.h"
 #include "sensor/incremental.h"
-#include "pathtracking.h"
+#include "obstacleavoidance.h"
 
 
 TASK_STATIC(commander,4,commanderFct,200,1);
@@ -54,10 +54,10 @@ static void commanderFct(void)
 				wp3.x = 0;
 				wp3.y = 1000;
 				wp4.x = wp4.y = 0;
-				Pathtracking_addWaypoint(&wp1);
-				Pathtracking_addWaypoint(&wp2);
-				Pathtracking_addWaypoint(&wp3);
-				Pathtracking_addWaypoint(&wp4);
+				ObstacleAvoidance_addWaypoint(&wp1);
+				ObstacleAvoidance_addWaypoint(&wp2);
+				ObstacleAvoidance_addWaypoint(&wp3);
+				ObstacleAvoidance_addWaypoint(&wp4);
 			}
 		}
 		Task_waitCurrent(222);

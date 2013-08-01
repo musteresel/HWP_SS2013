@@ -1,7 +1,7 @@
 #ifndef __MAPPING_H__
 #define __MAPPING_H__ 1
 #include <stdint.h>
-#include "util/w1r1.h"
+#include "util/onewriter.h"
 
 typedef struct __Pose_t
 {
@@ -11,7 +11,7 @@ typedef struct __Pose_t
 } Pose;
 
 
-extern W1R1 robotPose;
+extern Onewriter robotPose;
 
 #endif
 
